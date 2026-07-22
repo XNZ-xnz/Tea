@@ -10,6 +10,7 @@ public struct Recipe: Codable, Sendable, Equatable {
     public let api: String?              // d3d11 / d3d12 / …
     public let backend: String?          // dxmt / d3dmetal / wined3d
     public let wine: String?             // runtime id 覆盖
+    public let exe: String?              // 主程序名（per-app overrides 的锚点），如 P5R.exe
     public let env: [String: String]?
     public let dllOverrides: String?     // 追加进 WINEDLLOVERRIDES
     public let launchArgs: [String]?
@@ -17,7 +18,7 @@ public struct Recipe: Codable, Sendable, Equatable {
     public let knownIssuesZh: [String]?
 
     enum CodingKeys: String, CodingKey {
-        case appid, slug, engine, api, backend, wine, env
+        case appid, slug, engine, api, backend, wine, exe, env
         case nameZh = "name_zh"
         case dllOverrides = "dll_overrides"
         case launchArgs = "launch_args"
@@ -31,6 +32,7 @@ public struct LaunchPlan: Sendable {
     public let backend: GraphicsBackend
     public let runtimeId: String
     public let environment: [String: String]
+    public let exe: String?              // per-app overrides 的目标 exe 名
     public let source: String            // "recipe" / "default"
 }
 
@@ -68,25 +70,28 @@ public struct RecipeStore: Sendable {
     /// exePath 用于无配方时的导入表探测（拿不到就按 v1 全局默认 d3dmetal）。
     public func launchPlan(appid: String, exePath: URL? = nil) -> LaunchPlan {
         if let r = recipe(appid: appid) {
-            let backend = GraphicsBackend(rawValue: r.backend ?? "") ?? .d3dmetal
-            var env = BackendManager.launchEnvironment(for: backend)
+            let backend = GraphicsBackend(rawValue: r.backend ?? "") ?? .dxmt
+            var env: [String: String] = [:]
+            // 注意：per-app 机制下不再全局注入 WINEDLLOVERRIDES（会杀死 Steam CEF），
+            // recipe 的 env / dll_overrides 仅作用于直接启动场景
             for (k, v) in r.env ?? [:] { env[k] = v }
             if let extra = r.dllOverrides, !extra.isEmpty {
-                let base = env["WINEDLLOVERRIDES"] ?? ""
-                env["WINEDLLOVERRIDES"] = base.isEmpty ? extra : "\(base);\(extra)"
+                env["WINEDLLOVERRIDES"] = extra
             }
             return LaunchPlan(
                 backend: backend,
                 runtimeId: r.wine ?? SteamManager.defaultRuntime,
                 environment: env,
+                exe: r.exe,
                 source: "recipe"
             )
         }
-        let backend = exePath.map { PEImports.guessBackend(of: $0) } ?? .d3dmetal
+        let backend = exePath.map { PEImports.guessBackend(of: $0) } ?? .dxmt
         return LaunchPlan(
             backend: backend,
             runtimeId: SteamManager.defaultRuntime,
-            environment: BackendManager.launchEnvironment(for: backend),
+            environment: [:],
+            exe: exePath?.lastPathComponent,
             source: "default"
         )
     }

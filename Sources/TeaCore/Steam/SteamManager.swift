@@ -34,12 +34,16 @@ public enum SteamManager {
 
     /// 产品默认单一 steam prefix；底座 wine 见 defaultRuntime。
     public static let defaultPrefix = "steam"
-    /// Steam 客户端底座（2026-07-23 深夜第三轮实测定案）：**纯净 wine-devel-11.13**。
+    /// Steam 客户端底座（2026-07-23 深夜第三轮实测定案）：
     /// - gptk-wine（CX22，无 Vulkan）：steamwebhelper 循环崩溃 ✗
     /// - wine11+DXMT 变体：CEF 的 ANGLE 拿 DXMT d3d11 建窗口交换链失败
     ///   （SwapChain11 "Could not create additional swap chains" + EGL_BAD_ALLOC，cef_log 实证）✗
-    /// - 纯净 wine11：CEF 走 wine 内置 wined3d/GL 老路径；DXMT 只按游戏 exe 精准注入（per-app overrides）
-    public static let defaultRuntime = "wine-devel-11.13"
+    /// - **wine11+winemetal 微变体** ✓：wine 树仅添加 winemetal.so，内置 d3d11/dxgi 原封不动
+    ///   → CEF 走 wined3d/GL 老路径无感；游戏经 per-app overrides 加载 native DXMT
+    public static var defaultRuntime: String {
+        let variant = "wine-devel-11.13+winemetal"
+        return RuntimeManager.isInstalled(variant) ? variant : "wine-devel-11.13"
+    }
 
     public static func steamRoot(prefix: String) -> URL {
         PrefixManager.prefixDir(prefix)

@@ -234,7 +234,7 @@ struct Run: ParsableCommand {
 struct Backend: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "管理图形后端（DXMT、D3DMetal）",
-        subcommands: [Assemble.self, ImportGPTK.self, Status.self],
+        subcommands: [Assemble.self, Inject.self, ImportGPTK.self, Status.self],
         defaultSubcommand: Status.self
     )
 
@@ -257,6 +257,22 @@ struct Backend: ParsableCommand {
         func run() throws {
             let id = try BackendManager.assembleDXMTVariant(wine: wine, dxmt: dxmt)
             print("变体就绪：\(id)")
+        }
+    }
+
+    struct Inject: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "inject",
+            abstract: "给指定 exe 精准注入 DXMT（per-app，prefix 内其他程序不受影响）"
+        )
+        @Option(help: "prefix 名") var prefix: String
+        @Option(help: "目标 exe 名，如 P5R.exe") var exe: String
+
+        func run() throws {
+            let variant = try BackendManager.assembleWinemetalVariant(wine: "wine-devel-11.13", dxmt: "dxmt-v0.80")
+            try BackendManager.placeDXMTNativeDLLs(prefix: prefix, dxmt: "dxmt-v0.80")
+            try BackendManager.setAppDXMTOverrides(prefix: prefix, runtimeId: variant, exe: exe)
+            print("已注入：\(exe) 在 prefix「\(prefix)」将使用 DXMT（runtime \(variant)）")
         }
     }
 
@@ -343,6 +359,19 @@ struct Steam: AsyncParsableCommand {
             let store = RecipeStore(directory: URL(fileURLWithPath: "recipes"))
             let plan = store.launchPlan(appid: appid)
             print("启动方案（\(plan.source)）：后端 \(plan.backend.rawValue)，runtime \(plan.runtimeId)")
+
+            if plan.backend == .dxmt {
+                // per-app DXMT：布置 native dll + 给游戏 exe 写 overrides（Steam 界面不受影响）
+                let variant = try BackendManager.assembleWinemetalVariant(wine: "wine-devel-11.13", dxmt: "dxmt-v0.80")
+                try BackendManager.placeDXMTNativeDLLs(prefix: prefix, dxmt: "dxmt-v0.80")
+                if let exe = plan.exe {
+                    try BackendManager.setAppDXMTOverrides(prefix: prefix, runtimeId: variant, exe: exe)
+                    print("DXMT 已按 exe 精准注入：\(exe)")
+                } else {
+                    print("⚠️ recipe 未声明 exe，DXMT 无法 per-app 注入，游戏将走 wine 内置路径")
+                }
+            }
+
             try SteamManager.runGame(appid: appid, prefix: prefix, runtimeId: plan.runtimeId, environment: plan.environment)
             print("已请求 Steam 启动 appid \(appid)。")
         }

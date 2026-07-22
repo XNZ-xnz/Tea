@@ -104,6 +104,82 @@ public enum BackendManager {
         }
     }
 
+    // MARK: - per-app DXMT（终极架构：Steam UI 与游戏共存，2026-07-23 定案）
+    //
+    // 背景：DXMT 全局注入会杀死 Steam 的 CEF 界面（交换链不兼容，cef_log 实证）。
+    // 方案（DXMT wiki 的 native 安装模式 + wine 的 per-app overrides）：
+    //   1. wine 树只添加 winemetal.so（不替换任何内置文件 → CEF 无感）
+    //   2. DXMT 的 PE dll 放 prefix system32/syswow64（native 候选）
+    //   3. 注册表 AppDefaults\<游戏exe>\DllOverrides = native → 只有游戏加载 DXMT
+
+    /// 微变体：克隆 wine 树，仅添加 winemetal.so。幂等。
+    @discardableResult
+    public static func assembleWinemetalVariant(wine wineId: String, dxmt dxmtId: String) throws -> String {
+        let id = "\(wineId)+winemetal"
+        let dest = RuntimeManager.installDir(for: id)
+        if RuntimeManager.isInstalled(id) { return id }
+        guard RuntimeManager.isInstalled(wineId) else { throw BackendError.componentMissing(wineId) }
+        guard RuntimeManager.isInstalled(dxmtId) else { throw BackendError.componentMissing(dxmtId) }
+
+        let fm = FileManager.default
+        try? fm.removeItem(at: dest)
+        let rc = clonefile(RuntimeManager.installDir(for: wineId).path, dest.path, 0)
+        guard rc == 0 else { throw PrefixError.cloneFailed(dest.path, errno) }
+
+        let so = RuntimeManager.installDir(for: dxmtId).appendingPathComponent("x86_64-unix/winemetal.so")
+        let soDst = dest.appendingPathComponent("lib/wine/x86_64-unix/winemetal.so")
+        try? fm.removeItem(at: soDst)
+        try fm.copyItem(at: so, to: soDst)
+
+        let marker = InstalledRuntime(
+            id: id, kind: "wine+winemetal",
+            version: "\(wineId) + winemetal.so(\(dxmtId))",
+            sha256: "assembled-locally", installedAt: Date()
+        )
+        try RuntimeManager.encoder().encode(marker)
+            .write(to: dest.appendingPathComponent(RuntimeManager.markerName))
+        return id
+    }
+
+    /// DXMT 的 PE 四件套放进 prefix（native 候选；不设全局 override 就不生效）。
+    public static func placeDXMTNativeDLLs(prefix: String, dxmt dxmtId: String) throws {
+        let fm = FileManager.default
+        let src = RuntimeManager.installDir(for: dxmtId)
+        let root = PrefixManager.prefixDir(prefix)
+        let mapping: [(String, String)] = [
+            ("x86_64-windows", "drive_c/windows/system32"),
+            ("i386-windows", "drive_c/windows/syswow64"),
+        ]
+        for (from, to) in mapping {
+            let srcDir = src.appendingPathComponent(from)
+            let dstDir = root.appendingPathComponent(to)
+            guard fm.fileExists(atPath: dstDir.path) else { continue }
+            for name in ["d3d11.dll", "d3d10core.dll", "dxgi.dll", "winemetal.dll"] {
+                let s = srcDir.appendingPathComponent(name)
+                guard fm.fileExists(atPath: s.path) else { continue }
+                let d = dstDir.appendingPathComponent(name)
+                try? fm.removeItem(at: d)
+                try fm.copyItem(at: s, to: d)
+            }
+        }
+    }
+
+    /// 给指定 exe 写 per-app DllOverrides（native 优先）。写注册表，持久生效。
+    public static func setAppDXMTOverrides(prefix: String, runtimeId: String, exe: String) throws {
+        let key = "HKCU\\Software\\Wine\\AppDefaults\\\(exe)\\DllOverrides"
+        for dll in ["d3d11", "d3d10core", "dxgi"] {
+            let result = try WineRunner.run(
+                runtimeId: runtimeId, prefix: prefix,
+                program: "reg",
+                arguments: ["add", key, "/v", dll, "/d", "native,builtin", "/f"],
+                logTag: "reg-appdefaults"
+            )
+            guard result.exitCode == 0 else {
+                throw BackendError.componentMissing("注册表写入失败（\(dll)）：\(result.stderr)")
+            }
+        }
+    }
+
     /// 装配 wine+D3DMetal 变体。前提：用户已导入 GPTK（红线：绝不下载）。
     ///
     /// 布局照抄官方 dmg（GPTK 4.0 beta 1 Read Me 的 ditto 方案，2026-07-23 实物核实）：

@@ -77,16 +77,12 @@ public enum PEImports {
         return dlls
     }
 
-    /// 按导入表猜图形后端。
+    /// 按导入表猜图形后端。DX10/11 → DXMT（per-app 注入，金牌路径）；
+    /// DX12 → d3dmetal（启动链待通，先如实标注）；其余 → dxmt 兜底。
     public static func guessBackend(of exe: URL) -> GraphicsBackend {
-        guard let dlls = try? importedDLLs(of: exe) else { return .d3dmetal }
+        guard let dlls = try? importedDLLs(of: exe) else { return .dxmt }
         if dlls.contains(where: { $0.hasPrefix("d3d12") }) { return .d3dmetal }
-        if dlls.contains(where: { $0.hasPrefix("d3d11") || $0.hasPrefix("d3d10") || $0 == "dxgi.dll" }) {
-            // v1 阶段 DX10/11 也走 D3DMetal（与 Steam prefix 的 gptk-wine 底座一致）；
-            // 待免费 CX25 系底座出现后切换 DXMT（见 PROGRESS.md 2026-07-23 决策）
-            return .d3dmetal
-        }
-        return .d3dmetal // DX9 及无 D3D 依赖：D3DMetal 同样兜底（wined3d 仅诊断用）
+        return .dxmt
     }
 
     static func readU16(_ d: Data, _ o: Int) -> UInt16 {

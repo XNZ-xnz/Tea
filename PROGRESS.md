@@ -8,6 +8,25 @@
 - **构建**：本地 16 测试全绿；Steam 客户端已静默安装并自更新完成（bootstrap 日志 Verification complete）
 - **下一步**：产品负责人在真机登录 Steam → 装 P5R 实测（D3DMetal 3 / gptk-wine）→ 装幸福工厂实测 DX12 → 按实测结果写首批第一方兼容报告 → 进 P4 GUI
 
+## 端到端次夜攻坚（2026-07-23 凌晨 2-3 点，Steam UI 三轮排查 + 架构定案）
+
+**Steam UI 复活三部曲（全部 cef_log/实测实证）：**
+1. gptk-wine：无 Vulkan → CEF GPU 全灭 → webhelper 循环崩 ✗
+2. wine11+DXMT 全局变体：MoltenVK 激活但 CEF/ANGLE 拿 DXMT dxgi 建交换链失败（EGL_BAD_ALLOC）✗
+3. **纯净 wine11：CEF 走 wined3d/GL，「Sign in to Steam」登录窗成功上屏 ✓**
+
+**per-app DXMT 的坑（重要工程事实）：**
+- DXMT 的 release 与 Actions 全部产物均为 builtin 构建（DLL 带 "Wine builtin DLL" 标记，strings 实证）
+- builtin 标记的 DLL 放 prefix system32 + AppDefaults native override **不生效**（wine 认它是 builtin 不是 native，回落 wine 树的 wined3d）——system32 放置 + 注册表写入都验证正确但机制无效
+- normal 构建需自编（-Dwine_builtin_dll=false），后置
+
+**双模式架构（v1 定案，待 P5R 下载完成后最终验证）：**
+- **逛店模式**：纯净 wine-devel-11.13，Steam UI 完整（登录、商店、下载）
+- **游戏模式**：gptk-wine-3.0-2 + `steam -silent`（无 UI，webhelper 崩不阻塞主进程——待验证）+ rungameid，游戏获得 D3DMetal 3（DX10/11/12 通吃，免 per-app 注入）
+- 模式切换 = Tea 重启 Steam（几十秒），产品可接受
+- **prefix 双向兼容实测通过**：wine11 升级过的 steam prefix 被 gptk-wine（wine8）正常打开（"configuration has been updated" 后 cmd 正常执行）；注意切换前必须清光旧 wineserver（否则 "version mismatch 956/755"）
+- wine 窗口不自动上前台（macdrv 特性）：CLI 已内置 CGWindowList+NSRunningApplication 激活逻辑
+
 ## 端到端首夜攻坚记录（2026-07-23 深夜实测）
 
 - **症状**：Steam 界面进程 steamwebhelper 循环崩溃（"not responding" 弹窗 + "Failed creating offscreen shared JS context"）
