@@ -4,11 +4,22 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0、✅ P1、✅ P2、✅ P3 完成（2026-07-23）→ **端到端节点：等产品负责人登录 Steam 实测**
-- **构建**：本地 16 测试全绿；Steam 客户端已静默安装并自更新完成（bootstrap 日志 Verification complete）
-- **下一步**：产品负责人在真机登录 Steam → 装 P5R 实测（D3DMetal 3 / gptk-wine）→ 装幸福工厂实测 DX12 → 按实测结果写首批第一方兼容报告 → 进 P4 GUI
+- **阶段**：✅ P0-P3 完成 → **端到端进行中：Steam 已登录（扫码绕行成功），P5R 经 steamcmd 下载中（42GB）**
+- **下一步**：下载完成 → relocate-steamcmd-game.sh 1687950 搬进 Steam 库 → 重启 Steam（XoM wine，-silent）→ rungameid 启动 P5R 实测（游戏走 XoM wine 内置 DXMT，D3D 呈现路径已验证正常）
 
-## ⚠️ 当前 Blocker：macOS 27 beta（26A5378n）的 Chromium 呈现回归（2026-07-23 凌晨定性）
+## 🏆 端到端第三夜战记：扫码登录绕行成功（2026-07-23 凌晨-上午）
+
+**Beta 2（26A5388g）没修 CEF 黑屏**——但战役全胜，Steam 已登录（bombpee / XNZ）：
+
+1. **CDP 内窥突破**：Steam 加 `-cef-enable-debugging` → DevTools 协议进入 Chromium 内部——DOM 完全健康（登录页全部控件在），只是画不上屏。诊断法与工具全套在 tools/diagnostics/。
+2. **占位码陷阱**：登录页 img 的 QR 起初是 store.steampowered.com 占位码（扫了 3 次失败才识破）——**先本地 Vision 解码验货再发用户**，教训入 README。
+3. **第二根因：代理 Fake-IP**——connection_log 见 CM 连接目标 198.18.x.x（Clash 系 Fake-IP 段），Steam 长连接被掐死 → 挑战码永不生成。用户把 steam 域名加 fake-ip 白名单后 CM 连上（hkg 节点）。**Tea 诊断功能必做项：检测 198.18.x = 提示用户改代理配置**。
+4. **挑战码狙击**：s.team 码 ~30 秒轮换,「抽码→重生成标准黑白 QR→用户扫」要抢时间；用户手机预先就位 + 重启 Steam 后的新鲜窗口期内狙击成功。
+5. **凭据红线全程零违反**：密码零接触，登录确认全在用户手机 Steam App 完成。
+6. **安装 API 死角**：SteamClient.Installs 全套（OpenInstallWizard/SetAppList/ContinueInstall/QueueAppUpdate）在前端未挂载状态下均无法真正开始下载（eInstallState 卡 5）——主窗 React 卡 spinner（合成器瘫痪连锁）。**回退 steamcmd**（官方 CLI，无 CEF）：32 位程序需 WineHQ wine 的 wow64（XoM wine 纯 64 位跑不了），在 test prefix 下载中，用户终端自己输密码（合规）。
+7. 新知识：Steam 正式承载 UI 的是 SharedJSContext（steamloopback.host），窗口只是投影；`tea steam launch` 的 wine 选型逻辑照旧（XoM wine 首选）。
+
+## ⚠️ Blocker 存档：macOS 27 beta（26A5378n → Beta 2 26A5388g 均未修）的 Chromium 呈现回归（2026-07-23 凌晨定性）
 
 **现象**：Steam 登录窗上屏但内容纯黑（窗口级截屏实证），winedbg 频繁接崩溃。
 
