@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0 完成（2026-07-23）→ P1 进行中
-- **构建**：本地全绿 + CI 首跑绿（run 29938926884，1m27s）
-- **下一步**：P1 引擎地基——先网络核实 Wine 构建来源定 manifest，再做环境检测 → 下载器+SHA256 → runtime 管理 → prefix 快照 → wine 进程封装 → CLI 全链路自测
+- **阶段**：✅ P0、✅ P1 完成（2026-07-23）→ P2 图形层进行中
+- **构建**：本地 9 测试全绿；P1 CLI 全链路实测通过（见 P1 记录）
+- **下一步**：P2——DXMT 来源核实与装配（先读 reference/dxmt 文档）→ GPTK dmg 解包提取 D3DMetal → 后端切换机制
 
 ## 已定决策
 
@@ -21,6 +21,9 @@
 | 2026-07-23 | App Sandbox = NO | 本质是"下载并跑 wine 子进程"，沙箱无法容纳；P6 用公证+Hardened Runtime 保安全 |
 | 2026-07-23 | git 身份用 GitHub 匿名邮箱（307991847+XNZ-xnz@users.noreply.github.com） | 避免真实邮箱进公开提交历史 |
 | 2026-07-23 | 仓库从桌面搬到 `~/Projects/Tea` | 桌面被 iCloud 云盘同步，FileProvider/FinderInfo xattr 导致 swift test 的 codesign 必然失败（实测），构建垃圾还会上传云端 |
+| 2026-07-23 | **Wine 来源改为 Gcenx/macOS_Wine_builds 的 WineHQ 官方构建**（wine-devel 11.13），SHA256 `214e2044…` 已钉入 manifest | 指令首选的 `Gcenx/wine-crossover` 仓库已不存在（GitHub API 404 实测核实）；macOS_Wine_builds 活跃维护（11.13 发布于 2026-07-17），同作者、官方 WineHQ 打包 |
+| 2026-07-23 | 数据根支持 `TEA_HOME` 环境变量重定向 | 单元测试与沙盒实验隔离，正常运行仍固定在 ~/Library/Application Support/Tea |
+| 2026-07-23 | 快照存 `snapshots/<prefix>/`（prefix 目录之外）；回滚前自动拍 pre-rollback 快照 | 放 prefix 内会被下次快照套娃；自动保底让用户回滚永不丢数据 |
 
 ## 环境事实（2026-07-23 实测）
 
@@ -35,6 +38,15 @@
 （暂无）
 
 ## 各阶段记录
+
+### P1 引擎地基（2026-07-23 完成）
+
+- Core 新增：EnvironmentProbe（sysctl 芯片/内存/系统/Rosetta/磁盘 + 硬件档位判定）、RuntimeManifest+ManifestStore（版本与 SHA256 钉死）、Downloader（仅 HTTPS + 流式 SHA256 + 失败即清）、RuntimeManager（下载/缓存/解包/提取/marker）、PrefixManager（create/delete/clonefile 快照/自动保底回滚）、WineRunner（进程封装 + 日志落盘）
+- CLI 实装：env / runtime list·install·remove / prefix list·create·delete·snapshot·snapshots·rollback / run
+- 单测 9 个全绿（含真实文件系统 clonefile 快照回滚、SHA256 公开测试向量、HTTPS 强制闸）
+- **全链路实测（M4 真机）**：`tea env` ✅ → `tea runtime install wine-devel-11.13`（181MB 下载+校验+安装）✅ → `wine --version` = wine-11.13 ✅ → `tea prefix create test` + wineboot 初始化（system32 生成 848 文件）✅ → `tea run cmd /c echo` 输出正常 ✅ → 快照→破坏→回滚→破坏消失、pre-rollback 自动保底 ✅
+- 实物核实：Gcenx tar 包顶层为 `Wine Devel.app`，wine 树在 `Contents/Resources/wine/`（提取逻辑按此实现，兼容裸树布局）
+- 待办小项：wine cmd 输出中文乱码（代码页显示问题，不影响功能）；wineboot 的 wineusb.inf 复制警告（Mac 无 USB 驱动需求，无害）
 
 ### P0 脚手架（2026-07-23 完成）
 

@@ -1,10 +1,15 @@
 import Foundation
 
 /// Tea 在磁盘上的固定位置。所有组件通过这里取路径，禁止散落硬编码。
+///
+/// 环境变量 `TEA_HOME` 可整体重定向根目录——单元测试与 CLI 沙盒实验用，
+/// 正常运行永远落在 ~/Library/Application Support/Tea。
 public enum TeaPaths {
-    /// ~/Library/Application Support/Tea
     public static var appSupport: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        if let override = getenv("TEA_HOME"), let path = String(validatingCString: override), !path.isEmpty {
+            return URL(fileURLWithPath: path, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Tea", isDirectory: true)
     }
 
