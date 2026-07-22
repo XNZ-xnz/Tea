@@ -97,7 +97,8 @@ struct ManifestTests {
     @Test func environmentProbeReturnsPlausibleValues() {
         let info = EnvironmentProbe.probe()
         #expect(!info.chipName.isEmpty)
-        #expect(info.memoryGB >= 8)
+        // CI 虚拟机可能只有 7GB，这里只验证探测有效性，不设机器规格门槛
+        #expect(info.memoryGB > 0)
         #expect(!info.macOSVersion.isEmpty)
     }
 }
