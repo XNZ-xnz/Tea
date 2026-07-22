@@ -79,11 +79,19 @@ struct DownloaderTests {
 @Suite("Manifest")
 struct ManifestTests {
     @Test func builtinManifestIsSane() {
-        let wine = ManifestStore.builtin.component(id: "wine-devel-11.13")
-        #expect(wine != nil)
-        #expect(wine?.url.scheme == "https")
-        #expect(wine?.sha256.count == 64)
-        #expect(wine?.provenance.isEmpty == false)
+        for id in ["wine-devel-11.13", "gptk-wine-3.0-2", "dxmt-v0.80"] {
+            let c = ManifestStore.builtin.component(id: id)
+            #expect(c != nil, "缺组件 \(id)")
+            #expect(c?.url.scheme == "https")
+            #expect(c?.sha256.count == 64)
+            #expect(c?.provenance.isEmpty == false)
+        }
+    }
+
+    @Test func gptkVersionParsing() {
+        #expect(GPTKImporter.parseVersion(from: "Game_Porting_Toolkit_4.0_beta_1.dmg") == "4.0 beta 1")
+        #expect(GPTKImporter.parseVersion(from: "Evaluation environment for Windows games 4.0 beta 1.dmg") == "4.0 beta 1")
+        #expect(GPTKImporter.parseVersion(from: "GPTK_3.0.dmg") == "3.0")
     }
 
     @Test func environmentProbeReturnsPlausibleValues() {

@@ -164,7 +164,8 @@ struct Run: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "在 prefix 里运行 Windows 程序")
 
     @Option(help: "prefix 名") var prefix: String
-    @Option(help: "runtime id") var runtime: String = "wine-devel-11.13"
+    @Option(help: "runtime id（--backend dxmt 时自动选变体，可不填）") var runtime: String = "wine-devel-11.13"
+    @Option(help: "图形后端：dxmt / wined3d") var backend: String = "wined3d"
     @Flag(help: "打印 wine 详细日志") var verbose: Bool = false
     @Argument(parsing: .captureForPassthrough, help: "程序与参数，如：cmd /c echo hi") var command: [String]
 
@@ -172,11 +173,31 @@ struct Run: ParsableCommand {
         guard let program = command.first else {
             throw ValidationError("缺少要运行的程序，例：tea run --prefix test cmd /c ver")
         }
-        var env: [String: String] = [:]
+        guard let gfx = GraphicsBackend(rawValue: backend) else {
+            throw ValidationError("未知后端「\(backend)」，可选：\(GraphicsBackend.allCases.map(\.rawValue).joined(separator: " / "))")
+        }
+
+        var runtimeId = runtime
+        var env = BackendManager.launchEnvironment(for: gfx)
+        switch gfx {
+        case .dxmt:
+            runtimeId = try BackendManager.assembleDXMTVariant(wine: runtime, dxmt: "dxmt-v0.80")
+            try BackendManager.ensurePrefixSupport(prefix: prefix, dxmt: "dxmt-v0.80")
+        case .d3dmetal:
+            // D3DMetal 走 gptk-wine 原装全家桶（自带 D3DMetal 3，实测 D3D12_OK）。
+            // vanilla wine 与「GPTK4 库+GPTK3 wine」两条路实测均 c0000142，结论见 PROGRESS.md；
+            // 用户导入的 GPTK 4 已登记，等兼容底座后由 assembleD3DMetalVariant 启用。
+            runtimeId = runtime == "wine-devel-11.13" ? "gptk-wine-3.0-2" : runtime
+            guard RuntimeManager.isInstalled(runtimeId) else {
+                throw ValidationError("D3DMetal 需要 gptk-wine：tea runtime install gptk-wine-3.0-2")
+            }
+        case .wined3d:
+            break
+        }
         if verbose { env["WINEDEBUG"] = "warn+all,err+all" }
 
         let result = try WineRunner.run(
-            runtimeId: runtime, prefix: prefix,
+            runtimeId: runtimeId, prefix: prefix,
             program: program, arguments: Array(command.dropFirst()),
             environment: env
         )
@@ -187,11 +208,53 @@ struct Run: ParsableCommand {
     }
 }
 
-// MARK: - 占位（P2/P3/P5 实现）
+// MARK: - backend
 
 struct Backend: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "管理图形后端（DXMT、D3DMetal）")
-    func run() throws { print("backend: 尚未实现（P2）") }
+    static let configuration = CommandConfiguration(
+        abstract: "管理图形后端（DXMT、D3DMetal）",
+        subcommands: [Assemble.self, ImportGPTK.self, Status.self],
+        defaultSubcommand: Status.self
+    )
+
+    struct Status: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "status", abstract: "查看后端可用状态")
+        func run() throws {
+            print("DXMT      \(RuntimeManager.isInstalled("dxmt-v0.80") ? "✓ 已安装" : "未安装（tea runtime install dxmt-v0.80）")")
+            if let g = GPTKImporter.importedInfo() {
+                print("D3DMetal  ✓ 已导入（GPTK \(g.version)，来自 \(g.sourceDMGName)）")
+            } else {
+                print("D3DMetal  未导入（tea backend import-gptk <dmg路径>；dmg 从 Apple 官网自行下载）")
+            }
+        }
+    }
+
+    struct Assemble: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "assemble", abstract: "装配 wine+DXMT 变体 runtime（原版不动，秒级克隆）")
+        @Option(help: "wine runtime id") var wine: String = "wine-devel-11.13"
+        @Option(help: "dxmt runtime id") var dxmt: String = "dxmt-v0.80"
+        func run() throws {
+            let id = try BackendManager.assembleDXMTVariant(wine: wine, dxmt: dxmt)
+            print("变体就绪：\(id)")
+        }
+    }
+
+    struct ImportGPTK: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "import-gptk",
+            abstract: "从用户自备的 GPTK dmg 导入 D3DMetal（Tea 绝不下载或分发它）"
+        )
+        @Argument(help: "GPTK dmg 路径（外层或内层 Evaluation dmg 均可）") var dmg: String
+
+        func run() throws {
+            let url = URL(fileURLWithPath: (dmg as NSString).expandingTildeInPath)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw ValidationError("文件不存在：\(url.path)")
+            }
+            let info = try GPTKImporter.importDMG(at: url) { print("· \($0)") }
+            print("D3DMetal 就绪（GPTK \(info.version)）。用 --backend d3dmetal 启动 DX12 游戏。")
+        }
+    }
 }
 
 struct Steam: ParsableCommand {

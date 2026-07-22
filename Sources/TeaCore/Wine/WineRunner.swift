@@ -49,6 +49,12 @@ public enum WineRunner {
         // 默认压掉 fixme 噪音；诊断时由调用方显式覆盖 WINEDEBUG
         if env["WINEDEBUG"] == nil { env["WINEDEBUG"] = "fixme-all" }
         env.merge(environment) { _, new in new }
+        // 无人值守红线：崩溃调试器 winedbg 会弹窗挂死进程树，一律禁用。
+        // 与调用方的 overrides 合并（分号分隔），调用方显式设置 winedbg 时尊重调用方。
+        let overrides = env["WINEDLLOVERRIDES"] ?? ""
+        if !overrides.contains("winedbg") {
+            env["WINEDLLOVERRIDES"] = overrides.isEmpty ? "winedbg.exe=d" : "\(overrides);winedbg.exe=d"
+        }
         process.environment = env
 
         let outPipe = Pipe()

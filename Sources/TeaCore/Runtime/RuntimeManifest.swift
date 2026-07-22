@@ -41,6 +41,24 @@ public enum ManifestStore {
                 sizeBytes: 189_855_828,
                 provenance: "github.com/Gcenx/macOS_Wine_builds release 11.13（2026-07-17 发布，2026-07-23 经 GitHub API 核实）"
             ),
+            RuntimeComponent(
+                id: "gptk-wine-3.0-2",
+                kind: "wine",
+                version: "3.0-2",
+                url: URL(string: "https://github.com/Gcenx/game-porting-toolkit/releases/download/Game-Porting-Toolkit-3.0-2/game-porting-toolkit-3.0-2.tar.xz")!,
+                sha256: "c16b3b40b9a34853fc1f4546d13d20d28bc06e0f2edcfcf425df2ef7f2ec4ba4", // Gcenx homebrew-wine tap cask 声称值，2026-07-23 下载实测复核通过
+                sizeBytes: 0, // cask 未提供；首装后回填
+                provenance: "github.com/Gcenx/game-porting-toolkit（Apple GPTK 官方 Read Me 点名的预构建环境；CrossOver 源码构建，D3DMetal 兼容底座）"
+            ),
+            RuntimeComponent(
+                id: "dxmt-v0.80",
+                kind: "dxmt",
+                version: "0.80",
+                url: URL(string: "https://github.com/3Shain/dxmt/releases/download/v0.80/dxmt-v0.80-builtin.tar.gz")!,
+                sha256: "8f260e36b5739e68f3bad613381441385c4dc7b85b78ba8de653d5a6a264529d", // 2026-07-23 首次下载实测钉入
+                sizeBytes: 18_681_669,
+                provenance: "github.com/3Shain/dxmt release v0.80（2026-04-23 发布，2026-07-23 经 GitHub API 核实；包内布局 x86_64-unix/x86_64-windows/i386-windows 已实物验证）"
+            ),
         ]
     )
 }

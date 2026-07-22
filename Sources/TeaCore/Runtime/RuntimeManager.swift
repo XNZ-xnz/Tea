@@ -24,7 +24,7 @@ public struct InstalledRuntime: Codable, Sendable {
 }
 
 public enum RuntimeManager {
-    static let markerName = ".tea-runtime.json"
+    package static let markerName = ".tea-runtime.json"
 
     public static func installDir(for id: String) -> URL {
         TeaPaths.runtimes.appendingPathComponent(id, isDirectory: true)
@@ -89,8 +89,9 @@ public enum RuntimeManager {
         switch component.kind {
         case "wine":
             payload = try locateWineTree(in: staging)
+        case "dxmt":
+            payload = try locateDXMTTree(in: staging)
         default:
-            // 其他类别 P2 起逐个实现；默认取解包根
             payload = staging
         }
 
@@ -112,9 +113,12 @@ public enum RuntimeManager {
         try FileManager.default.removeItem(at: installDir(for: id))
     }
 
-    /// wine 可执行文件路径（bin/wine）。
+    /// wine 可执行文件路径。WineHQ 构建叫 bin/wine，CrossOver 系（GPTK）叫 bin/wine64。
     public static func wineBinary(runtimeId: String) -> URL {
-        installDir(for: runtimeId).appendingPathComponent("bin/wine")
+        let bin = installDir(for: runtimeId).appendingPathComponent("bin")
+        let wine = bin.appendingPathComponent("wine")
+        if FileManager.default.fileExists(atPath: wine.path) { return wine }
+        return bin.appendingPathComponent("wine64")
     }
 
     // MARK: - 内部
@@ -133,23 +137,39 @@ public enum RuntimeManager {
         }
     }
 
-    /// Gcenx 包结构（2026-07-23 实物核实）：顶层 "Wine Devel.app"，
-    /// wine 树在 Contents/Resources/wine（bin/lib/share）。做通配查找以兼容命名变化。
+    /// Gcenx 包结构（2026-07-23 实物核实）：顶层为 .app（如 "Wine Devel.app"、
+    /// "Game Porting Toolkit.app"），wine 树在 Contents/Resources/wine（bin/lib/share）。
+    /// 二进制名兼容 wine（WineHQ）与 wine64（CrossOver 系）。
     static func locateWineTree(in dir: URL) throws -> URL {
         let fm = FileManager.default
+        func hasWine(_ tree: URL) -> Bool {
+            fm.fileExists(atPath: tree.appendingPathComponent("bin/wine").path)
+                || fm.fileExists(atPath: tree.appendingPathComponent("bin/wine64").path)
+        }
         let tops = (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
         for top in tops {
             let candidate = top.appendingPathComponent("Contents/Resources/wine")
-            if fm.fileExists(atPath: candidate.appendingPathComponent("bin/wine").path) {
-                return candidate
-            }
+            if hasWine(candidate) { return candidate }
         }
         // 兼容"直接就是 wine 树"的包
-        if fm.fileExists(atPath: dir.appendingPathComponent("bin/wine").path) { return dir }
+        if hasWine(dir) { return dir }
         throw RuntimeError.wineTreeNotFound
     }
 
-    static func encoder() -> JSONEncoder {
+    /// DXMT builtin 包结构（2026-07-23 实物核实）：顶层 v0.80/，内含
+    /// x86_64-unix（winemetal.so）、x86_64-windows 与 i386-windows（d3d11/d3d10core/dxgi/winemetal.dll 等）。
+    static func locateDXMTTree(in dir: URL) throws -> URL {
+        let fm = FileManager.default
+        let marker = "x86_64-windows/d3d11.dll"
+        if fm.fileExists(atPath: dir.appendingPathComponent(marker).path) { return dir }
+        let tops = (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        for top in tops where fm.fileExists(atPath: top.appendingPathComponent(marker).path) {
+            return top
+        }
+        throw RuntimeError.extractionFailed("DXMT 包里没找到 x86_64-windows/d3d11.dll，包结构可能已变化")
+    }
+
+    package static func encoder() -> JSONEncoder {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .iso8601
         e.outputFormatting = [.prettyPrinted, .sortedKeys]

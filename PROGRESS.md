@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0、✅ P1 完成（2026-07-23）→ P2 图形层进行中
-- **构建**：本地 9 测试全绿；P1 CLI 全链路实测通过（见 P1 记录）
-- **下一步**：P2——DXMT 来源核实与装配（先读 reference/dxmt 文档）→ GPTK dmg 解包提取 D3DMetal → 后端切换机制
+- **阶段**：✅ P0、✅ P1、✅ P2 完成（2026-07-23）→ P3 Steam 层进行中
+- **构建**：本地 10 测试全绿；两大图形后端均在 M4 真机实测通过（DXMT: FL 11_0 + Apple M4 直通；D3DMetal 3: D3D12_OK）
+- **下一步**：P3——SteamSetup.exe 获取与静默安装 → VDF/ACF 解析器（fixture 单测）→ rungameid 启动链 → recipes 引擎 → 端到端节点叫产品负责人
 
 ## 已定决策
 
@@ -38,6 +38,32 @@
 （暂无）
 
 ## 各阶段记录
+
+### P2 图形层（2026-07-23 完成）
+
+**DXMT（DX10/11 默认后端）——全链路实测通过：**
+- manifest 新增 dxmt-v0.80（3Shain/dxmt release，SHA256 钉入，包内三目录布局实物核实）
+- 装配机制：APFS clonefile 克隆 wine 树成变体 `wine-devel-11.13+dxmt-v0.80`（原版只读不动），按 DXMT 官方 wiki 布局覆盖（winemetal.so → x86_64-unix，d3d11/dxgi/d3d10core/winemetal.dll → x86_64-windows，winemetal.dll 另拷 prefix system32/syswow64）
+- **重要架构发现**：DXMT v0.80 新架构（winemetal.so 自包含）不再依赖 CX wine 的 winemacdrv 私有符号（nm 实测：仅标准 unixlib 接口 + 系统框架）——**vanilla WineHQ 构建可直接带动**，wiki 老文档「需要 CX wine」已过时
+- 自研 d3d11_smoke.exe（mingw-w64 交叉编译，tools/ 入库）A/B 实测：wined3d = FL 9_3 + 假 GeForce 6800；**DXMT = FL 11_0 + ADAPTER=Apple M4（VENDOR 0x106b）**
+
+**GPTK 导入器——全流程实测通过：**
+- GPTK 4.0 beta 1 dmg 实物结构：外层（开发工具）嵌套内层《Evaluation environment for Windows games》dmg，D3DMetal 在内层 `redist/lib/`（与历史版本路径一致）
+- 导入器自动处理嵌套挂载 → 布局体检 → 提取 67MB 到 user-provided/gptk/ → 版本解析登记 → 卸载
+- **官方环境变量文档抄录入码**（dmg 内 Read Me）：D3DM_SUPPORT_DXR（M1/M2 默认关，M3+ 默认开）、ROSETTA_ADVERTISE_AVX、D3DM_ENABLE_METALFX（macOS 26+）、D3DM_MTL4（macOS 27+）、D3DM_MAX_FPS；shader cache 在 DARWIN_USER_CACHE_DIR/d3dm
+
+**D3DMetal 兼容性结论（三组对照实验，全部实测）：**
+- ❌ GPTK 4 库 + vanilla wine 11.13：d3d12.dll 初始化 c0000142（DllMain 挂接 unix 侧失败）
+- ❌ GPTK 4 库 + gptk-wine 3.0-2（强制 builtin 同败）：**GPTK 4 库需要 CX24/25 代 wine 底座**，当前无免费活跃构建
+- ✅ **gptk-wine 3.0-2 原装全家桶（自带 D3DMetal 3）：D3D12_OK** ——DX12 路线就此打通
+- 产品策略：D3DMetal 后端 = gptk-wine 原装；GPTK 4 导入保留登记，等兼容底座出现即启用（关注 Kegworks / CXPatcher 生态）
+- manifest 新增 gptk-wine-3.0-2（Gcenx/game-porting-toolkit release，Apple 官方 Read Me 点名的预构建环境；SHA256 与其 tap cask 声称值双源一致）
+
+**其他硬性教训：**
+- GPTK 4 的 wine/x86_64-unix/*.so 全是指向 ../../external/libd3dshared.dylib 的**符号链接**——装配必须保持 lib/external 与 lib/wine 平级，否则断链（踩坑：dlopen no such file 但 ls 看似文件在）
+- wine 崩溃会拉起 winedbg --auto 弹窗挂死进程树（两次实测踩坑）——WineRunner 已默认注入 winedbg.exe=d，无人值守场景根治
+- CX 系 wine 二进制叫 wine64 无 wine；RuntimeManager 已兼容两种命名
+- macOS 无 timeout 命令；zsh 里裸 `===`/`==...` 会被当命令
 
 ### P1 引擎地基（2026-07-23 完成）
 
