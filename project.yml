@@ -1,0 +1,36 @@
+# XcodeGen 工程定义。Tea.xcodeproj 是生成物：改这里，然后跑 `xcodegen`，禁止手改 .xcodeproj。
+name: Tea
+options:
+  bundleIdPrefix: io.github.xnz-xnz
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+
+packages:
+  TeaCore:
+    path: .
+
+targets:
+  Tea:
+    type: application
+    platform: macOS
+    sources:
+      - App/Sources
+    dependencies:
+      - package: TeaCore
+        product: TeaCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.xnz-xnz.tea
+        PRODUCT_NAME: Tea
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.games
+        INFOPLIST_KEY_NSHumanReadableCopyright: "GPL-3.0 · https://github.com/XNZ-xnz/Tea"
+        # 本质是"下载 Windows 程序并用 Wine 执行"，App Sandbox 无法容纳；发布走公证 + Hardened Runtime（P6 处理）
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        SWIFT_VERSION: "6.0"

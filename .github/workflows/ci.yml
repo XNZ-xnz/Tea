@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 诊断 runner 环境（Xcode 版本与 SDK）
+        run: |
+          sw_vers
+          xcodebuild -version || true
+          ls /Applications | grep -i xcode || true
+          swift --version
+
+      - name: Core 构建
+        run: swift build
+
+      - name: Core 测试
+        run: swift test
+
+      - name: App 构建（XcodeGen + xcodebuild）
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          xcodebuild -project Tea.xcodeproj -scheme Tea -destination 'platform=macOS' build CODE_SIGNING_ALLOWED=NO

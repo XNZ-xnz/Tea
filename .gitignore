@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Xcode（Tea.xcodeproj 由 XcodeGen 生成，不入库）
+*.xcodeproj
+xcuserdata/
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# 参考仓库（本地克隆，只读参考）
+reference/
+
+# 本地临时
+*.log
+.env
