@@ -33,6 +33,24 @@ public enum ManifestStore {
         schemaVersion: 1,
         components: [
             RuntimeComponent(
+                id: "winecx-xom-5.4.2",
+                kind: "wine",
+                version: "XoM 5.4.2",
+                url: URL(string: "https://softwareupdate.xivmac.com/sites/default/files/update_data/XIV%20on%20Mac5.4.2.tar.xz")!,
+                sha256: "68e50be2596b6021a8e6d0e2c3c4e74c1064222697c7026e4565427813f7648f", // 2026-07-23 下载实测钉入
+                sizeBytes: 64_978_952,
+                provenance: "XIV on Mac 5.4.2 官方分发（Homebrew cask 同源；wine 树在 app 内 Resources/wine）。marzent/winecx 构建（CrossOver 开源部分 + Mac 补丁），自带 DXMT（winemetal.dll 在 x86_64-windows）。XoM 用户实战跑 Steam 版 FF14 的同款 wine"
+            ),
+            RuntimeComponent(
+                id: "wine-devel-11.6_1",
+                kind: "wine",
+                version: "11.6_1",
+                url: URL(string: "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.6_1/wine-devel-11.6_1-osx64.tar.xz")!,
+                sha256: "737c5bbcef4dab626e6dcb58f3736bf910780de25d53e52e7d7c01e521da725a", // 2026-07-23 下载实测钉入
+                sizeBytes: 319_775_820,
+                provenance: "github.com/Gcenx/macOS_Wine_builds release 11.6_1（最后一个带 DXMT/Steam 补丁的满配构建——Gcenx 在 issue #159 确认 11.7 起回归纯净 WineHQ 打包，DXMT & Steam 不再开箱可用；11.6_1 捆绑 gecko/mono）"
+            ),
+            RuntimeComponent(
                 id: "wine-devel-11.13",
                 kind: "wine",
                 version: "11.13",

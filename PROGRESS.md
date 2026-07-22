@@ -8,6 +8,28 @@
 - **构建**：本地 16 测试全绿；Steam 客户端已静默安装并自更新完成（bootstrap 日志 Verification complete）
 - **下一步**：产品负责人在真机登录 Steam → 装 P5R 实测（D3DMetal 3 / gptk-wine）→ 装幸福工厂实测 DX12 → 按实测结果写首批第一方兼容报告 → 进 P4 GUI
 
+## ⚠️ 当前 Blocker：macOS 27 beta（26A5378n）的 Chromium 呈现回归（2026-07-23 凌晨定性）
+
+**现象**：Steam 登录窗上屏但内容纯黑（窗口级截屏实证），winedbg 频繁接崩溃。
+
+**排查矩阵（全部实测，全部失败）**：
+| wine | 配置 | 结果 |
+|---|---|---|
+| gptk-wine 3.0-2（CX22） | 默认 | webhelper 循环崩 |
+| wine-devel 11.13 + DXMT | GPU | 交换链 EGL_BAD_ALLOC（cef_log） |
+| wine-devel 11.13 纯净 | GPU / -cefdisablegpu 软渲染 | 黑屏 |
+| wine-devel 11.6_1 满配 | 默认 | 黑屏（该包实为「纯净化」重打包，带补丁的原版 11.6 已被 Gcenx 下架——issue #159 官方确认 11.7 起 DXMT & Steam 不再开箱可用） |
+| winecx-xom-5.4.2（CX 系 wine 11 + 内置 DXMT，XoM 用户实战跑 Steam 的同款） | 默认 / -no-cef-sandbox / ForceOpenGLBackingStore | 黑屏 |
+
+**定性证据**：wine GDI 窗口正常（notepad 完整渲染）✓；wine GPU 表面正常（自编 D3D9 清屏 smoke 满窗蓝色）✓；唯 Chromium/CEF 内容全黑 ✗。同款方案社区用户运行正常，但都在 macOS 15/26 稳定版——**结论：27 beta build 26A5378n 与 Chromium ANGLE 呈现链的兼容性回归，非 Tea 架构问题**。
+
+**出路（优先级序）**：
+1. **升级 macOS 27 Beta 2（26A5388g，softwareupdate 已见）**——beta 回归的第一解法，待产品负责人执行重启安装
+2. 备胎：**steamcmd 绕行**（Valve 官方命令行客户端，纯文本无 CEF：登录+下载游戏全可用；游戏运行走 steam -silent + rungameid，不需要商店 UI）——CEF 黑屏只挡「逛商店」，不挡玩游戏
+3. 向 Apple Feedback Assistant 提交（附 D3D9 正常/CEF 黑的对照证据）
+
+**本夜沉淀资产**：winecx-xom-5.4.2 runtime（manifest 已钉，CX 系+内置 DXMT，beta 修复后即为 Steam 首选底座）；诊断工具箱 tools/diagnostics/（窗口清单/窗口级截屏/激活）+ tools/d3d11-smoke/gpu_window_smoke.c（GPU 表面分诊）；per-app 注入全套代码（builtin 标记问题记录在案）。
+
 ## 端到端次夜攻坚（2026-07-23 凌晨 2-3 点，Steam UI 三轮排查 + 架构定案）
 
 **Steam UI 复活三部曲（全部 cef_log/实测实证）：**
