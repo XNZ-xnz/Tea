@@ -34,8 +34,14 @@ public enum SteamManager {
 
     /// 产品默认单一 steam prefix；底座 wine 见 defaultRuntime。
     public static let defaultPrefix = "steam"
-    /// v1 固定 gptk-wine：Steam 客户端与游戏同一 wine 世界，D3DMetal 3 通吃 DX10-12（2026-07-23 决策）
-    public static let defaultRuntime = "gptk-wine-3.0-2"
+    /// Steam 客户端底座（2026-07-23 实测修订）：
+    /// gptk-wine（CX22 基，无 Vulkan）跑不动新版 Steam UI——steamwebhelper 循环崩溃，
+    /// -cefdisablegpu 也救不回；wine-devel 11.13 带 winevulkan/MoltenVK 且 DXMT 提供完整 DX11。
+    /// DX11 游戏（含首发目标 P5R）在此底座直接玩；DX12 游戏的 gptk-wine 启动链另行处理。
+    public static var defaultRuntime: String {
+        let dxmtVariant = "wine-devel-11.13+dxmt-v0.80"
+        return RuntimeManager.isInstalled(dxmtVariant) ? dxmtVariant : "wine-devel-11.13"
+    }
 
     public static func steamRoot(prefix: String) -> URL {
         PrefixManager.prefixDir(prefix)
@@ -93,6 +99,10 @@ public enum SteamManager {
         let process = Process()
         process.executableURL = wine
         var args = ["C:\\Program Files (x86)\\Steam\\steam.exe"]
+        // gptk-wine 无 Vulkan，CEF 的 GPU 加速路径会让 steamwebhelper 循环崩溃
+        // （"Failed creating offscreen shared JS context"，2026-07-23 实测）。
+        // 禁用 CEF GPU 加速是 CX/Whisky 生态跑 Steam 的通行方案，只影响启动器界面渲染，不影响游戏。
+        args += ["-cefdisablegpu", "-cefdisablegpucompositing"]
         if silent { args.append("-silent") }
         args += extraArgs
         process.arguments = args
@@ -100,7 +110,10 @@ public enum SteamManager {
         var env = ProcessInfo.processInfo.environment
         env["WINEPREFIX"] = PrefixManager.prefixDir(prefix).path
         env["WINEDEBUG"] = "fixme-all"
-        env["WINEDLLOVERRIDES"] = "winedbg.exe=d"
+        // DXMT 变体底座时启用 DXMT 的 d3d11（Steam CEF 与 DX11 游戏共用）
+        env["WINEDLLOVERRIDES"] = runtimeId.contains("+dxmt")
+            ? "d3d11,d3d10core,dxgi=b;winedbg.exe=d"
+            : "winedbg.exe=d"
         process.environment = env
         try process.run()
         // 不 wait：Steam 常驻。日志走 Steam 自己的 logs 目录。
@@ -122,7 +135,9 @@ public enum SteamManager {
         var env = ProcessInfo.processInfo.environment
         env["WINEPREFIX"] = PrefixManager.prefixDir(prefix).path
         env["WINEDEBUG"] = "fixme-all"
-        env["WINEDLLOVERRIDES"] = "winedbg.exe=d"
+        env["WINEDLLOVERRIDES"] = runtimeId.contains("+dxmt")
+            ? "d3d11,d3d10core,dxgi=b;winedbg.exe=d"
+            : "winedbg.exe=d"
         env.merge(environment) { _, new in new }
         process.environment = env
         try process.run()

@@ -8,6 +8,14 @@
 - **构建**：本地 16 测试全绿；Steam 客户端已静默安装并自更新完成（bootstrap 日志 Verification complete）
 - **下一步**：产品负责人在真机登录 Steam → 装 P5R 实测（D3DMetal 3 / gptk-wine）→ 装幸福工厂实测 DX12 → 按实测结果写首批第一方兼容报告 → 进 P4 GUI
 
+## 端到端首夜攻坚记录（2026-07-23 深夜实测）
+
+- **症状**：Steam 界面进程 steamwebhelper 循环崩溃（"not responding" 弹窗 + "Failed creating offscreen shared JS context"）
+- **根因**：gptk-wine（CX22 基）无 Vulkan（"Wine was built without Vulkan support"），新版 Steam 的 CEF 界面 GPU 路径全灭；`-cefdisablegpu` 单独救不回
+- **解法（实测成立）**：Steam 客户端底座切到 **wine-devel-11.13+dxmt-v0.80 变体**——MoltenVK 激活（Vulkan 1.4.334 + 153 扩展 + Apple M4 直识）+ DXMT 提供 d3d11，webhelper 稳定存活（30 秒 pid 不变 ×2 轮验证）
+- **策略修订**：DX11 游戏（含 P5R）直接在此底座玩（DXMT 金牌路径回归）；DX12 游戏启动链另行处理（候选：gptk-wine -silent 模式旁路 / 等免费 CX25 系底座）；`SteamManager.defaultRuntime` 自动优先 DXMT 变体
+- 附带坑：wine8→wine11 的 prefix 升级会被残余 gptk-wine 进程锁死等待——升级前必须清光旧 wineserver 进程树；Steam 服务（steamservice.exe）会随 wineboot 自启
+
 ## 端到端实测操作卡（给产品负责人）
 
 ```bash
