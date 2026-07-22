@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- **阶段**：P0 脚手架（本地全绿，待推送 GitHub）
-- **构建**：swift build ✅ / swift test 2 通过 ✅ / tea CLI --version·--help ✅ / xcodegen + xcodebuild App ✅（Xcode 27.0 beta，27A5228h）
-- **下一步**：GitHub 仓库推送 + CI 首跑 → 克隆参考仓库 → 进入 P1
+- **阶段**：✅ P0 完成（2026-07-23）→ P1 进行中
+- **构建**：本地全绿 + CI 首跑绿（run 29938926884，1m27s）
+- **下一步**：P1 引擎地基——先网络核实 Wine 构建来源定 manifest，再做环境检测 → 下载器+SHA256 → runtime 管理 → prefix 快照 → wine 进程封装 → CLI 全链路自测
 
 ## 已定决策
 
@@ -36,7 +36,9 @@
 
 ## 各阶段记录
 
-### P0 脚手架（2026-07-23 开工）
+### P0 脚手架（2026-07-23 完成）
 
-- 建立三层空壳、XcodeGen 工程、CI、CLAUDE.md、本文件、README 草稿、GPL-3.0
-- 待办：本地验证、GitHub 仓库、reference/ 克隆
+- 三层空壳、XcodeGen 工程、CI、CLAUDE.md、本文件、README 草稿、GPL-3.0 全部落地
+- 本地 swift build/test + xcodebuild 绿；CI 首跑绿；仓库 https://github.com/XNZ-xnz/Tea 上线
+- reference/ 克隆完成：Whisky、Mythic、XIV-on-Mac、dxmt、winetricks、macOS_Wine_builds（221MB，只读参考）
+- 踩坑记录：桌面 iCloud 同步导致 codesign 失败 → 仓库定居 ~/Projects/Tea
