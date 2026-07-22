@@ -257,9 +257,70 @@ struct Backend: ParsableCommand {
     }
 }
 
-struct Steam: ParsableCommand {
-    static let configuration = CommandConfiguration(abstract: "Windows Steam 安装与游戏库")
-    func run() throws { print("steam: 尚未实现（P3）") }
+struct Steam: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Windows Steam 安装与游戏库",
+        subcommands: [Install.self, Launch.self, Apps.self, Game.self],
+        defaultSubcommand: Apps.self
+    )
+
+    struct Install: AsyncParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "install", abstract: "下载官方安装器并静默安装 Windows Steam")
+        @Option(help: "prefix 名") var prefix: String = SteamManager.defaultPrefix
+        @Option(help: "runtime id") var runtime: String = SteamManager.defaultRuntime
+
+        func run() async throws {
+            guard RuntimeManager.isInstalled(runtime) else {
+                throw ValidationError("先安装底座：tea runtime install \(runtime)")
+            }
+            try await SteamManager.install(prefix: prefix, runtimeId: runtime) { print("· \($0)") }
+            print("完成。下一步 tea steam launch 打开 Steam 登录窗口（登录只发生在 Steam 自己的窗口里）。")
+        }
+    }
+
+    struct Launch: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "launch", abstract: "打开 Steam 窗口（登录、逛商店、下载游戏）")
+        @Option(help: "prefix 名") var prefix: String = SteamManager.defaultPrefix
+        @Option(help: "runtime id") var runtime: String = SteamManager.defaultRuntime
+        @Flag(help: "静默启动（最小化到托盘）") var silent: Bool = false
+
+        func run() throws {
+            try SteamManager.launch(prefix: prefix, runtimeId: runtime, silent: silent)
+            print("Steam 正在启动（首次启动会自更新，需要几分钟）。")
+        }
+    }
+
+    struct Apps: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "apps", abstract: "列出已安装的 Steam 游戏")
+        @Option(help: "prefix 名") var prefix: String = SteamManager.defaultPrefix
+
+        func run() throws {
+            let apps = try SteamManager.installedApps(prefix: prefix)
+            if apps.isEmpty {
+                print("（游戏库为空——在 Steam 窗口里安装游戏后再来）")
+                return
+            }
+            for app in apps {
+                let size = String(format: "%.1f GB", Double(app.sizeOnDisk) / 1_073_741_824)
+                let state = app.isFullyInstalled ? "✓" : "…"
+                print("[\(state)] \(app.appid)  \(app.name)  (\(size), build \(app.buildid))")
+            }
+        }
+    }
+
+    struct Game: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "game", abstract: "经 Steam 启动游戏（steam://rungameid）")
+        @Option(help: "prefix 名") var prefix: String = SteamManager.defaultPrefix
+        @Argument(help: "Steam appid，如 1687950") var appid: String
+
+        func run() throws {
+            let store = RecipeStore(directory: URL(fileURLWithPath: "recipes"))
+            let plan = store.launchPlan(appid: appid)
+            print("启动方案（\(plan.source)）：后端 \(plan.backend.rawValue)，runtime \(plan.runtimeId)")
+            try SteamManager.runGame(appid: appid, prefix: prefix, runtimeId: plan.runtimeId, environment: plan.environment)
+            print("已请求 Steam 启动 appid \(appid)。")
+        }
+    }
 }
 
 struct Report: ParsableCommand {

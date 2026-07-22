@@ -1,0 +1,10 @@
+# 幸福工厂 — UE5 / DX12，GPTK 导入后端到端第二目标
+# appid 核实：Steam storefront API，2026-07-23
+appid: "526870"
+slug: satisfactory
+name_zh: 幸福工厂
+engine: UE5
+api: d3d12
+backend: d3dmetal
+wine: gptk-wine-3.0-2
+notes_zh: 另有 -vulkan 启动项可实验（需 DXVK+MoltenVK 路线，v1 未接）。

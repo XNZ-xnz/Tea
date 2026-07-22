@@ -1,0 +1,10 @@
+# 007 First Light — Glacier 引擎 / DX12
+# appid 查证：Steam storesearch API，2026-07-23（007 First Light = 3768760）
+appid: "3768760"
+slug: 007-first-light
+name_zh: 007：初光
+engine: Glacier
+api: d3d12
+backend: d3dmetal
+wine: gptk-wine-3.0-2
+notes_zh: 社区已在 GPTK 4 beta 下跑通（有 M1 Pro 实机视频）。

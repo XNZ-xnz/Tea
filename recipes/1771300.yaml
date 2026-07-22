@@ -1,0 +1,10 @@
+# 天国：拯救2 — CryEngine / DX12，内存大户
+# appid 核实：Steam storefront API，2026-07-23
+appid: "1771300"
+slug: kingdom-come-deliverance-2
+name_zh: 天国：拯救2
+engine: CryEngine
+api: d3d12
+backend: d3dmetal
+wine: gptk-wine-3.0-2
+notes_zh: Windows 最低配即要 16GB 内存；16GB Mac 上余量紧张，建议关闭其他应用。

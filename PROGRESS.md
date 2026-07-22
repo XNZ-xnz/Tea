@@ -4,9 +4,19 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0、✅ P1、✅ P2 完成（2026-07-23）→ P3 Steam 层进行中
-- **构建**：本地 10 测试全绿；两大图形后端均在 M4 真机实测通过（DXMT: FL 11_0 + Apple M4 直通；D3DMetal 3: D3D12_OK）
-- **下一步**：P3——SteamSetup.exe 获取与静默安装 → VDF/ACF 解析器（fixture 单测）→ rungameid 启动链 → recipes 引擎 → 端到端节点叫产品负责人
+- **阶段**：✅ P0、✅ P1、✅ P2、✅ P3 完成（2026-07-23）→ **端到端节点：等产品负责人登录 Steam 实测**
+- **构建**：本地 16 测试全绿；Steam 客户端已静默安装并自更新完成（bootstrap 日志 Verification complete）
+- **下一步**：产品负责人在真机登录 Steam → 装 P5R 实测（D3DMetal 3 / gptk-wine）→ 装幸福工厂实测 DX12 → 按实测结果写首批第一方兼容报告 → 进 P4 GUI
+
+## 端到端实测操作卡（给产品负责人）
+
+```bash
+cd ~/Projects/Tea
+.build/debug/tea steam launch        # 打开 Steam 窗口 → 登录（凭据只进 Steam 自己的窗口）
+# 在 Steam 里安装《女神异闻录5 皇家版》（约 37GB，注意磁盘）
+.build/debug/tea steam apps          # 确认游戏出现在库里
+.build/debug/tea steam game 1687950  # 一键启动 P5R
+```
 
 ## 已定决策
 
@@ -38,6 +48,17 @@
 （暂无）
 
 ## 各阶段记录
+
+### P3 Steam 层（2026-07-23 完成）
+
+- **VDF/ACF 解析器**（KeyValues.swift）：Valve KeyValues 文本全子集（引号/嵌套/注释/转义/条件标记/裸词），大小写不敏感查询；fixture 单测覆盖 libraryfolders.vdf 与 appmanifest.acf
+- **PE 导入表解析器**（PEImports.swift）：读 exe 导入的 DLL 名猜 DX 版本（默认策略核心）；用自编 d3d11_smoke.exe 当 fixture 单测
+- **SteamManager**：官方安装器下载（cdn.fastly.steamstatic.com，HTTPS，运行时获取不分发）→ NSIS /S 静默安装 → launch（-silent 可选）→ steam://rungameid 启动链 → 多库游戏扫描（libraryfolders + acf）
+- **recipes 引擎**（Yams）：`recipes/<appid>.yaml` 加载 → LaunchPlan 组装（backend env + recipe env + dll_overrides 合并）；无配方走 PE 导入表默认策略
+- **首发 7 款 recipe 种子全部经 Steam 官方 API 核实 appid**（2026-07-23）：P5R=1687950、幸福工厂=526870、天国拯救2=1771300、FH6=2483190、**无尽传奇2=3407390、007初光=3768760、死亡搁浅2=3280350**（后三个为本次查证）
+- **真机自测**：`tea steam install` 一次通过（下载→静默装→steam.exe 落位）→ `tea steam launch` → Steam 自更新完成、steamwebhelper（UI 进程）出现、bootstrap 日志 Verification complete → 干净关闭等用户
+- recipe→启动方案链路实测：`tea steam game 1687950` 正确输出「后端 d3dmetal，runtime gptk-wine-3.0-2（来源 recipe）」
+- 已知限制（v1）：per-game env 只作用于 rungameid 的发起进程；游戏实际继承常驻 Steam 的 env。全局 env 已足够 v1（统一 D3DMetal 3）；per-game env 精确化留待 P4/P5（方案：env 变化时自动重启 Steam）
 
 ### P2 图形层（2026-07-23 完成）
 

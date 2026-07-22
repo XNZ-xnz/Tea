@@ -1,0 +1,10 @@
+# 死亡搁浅2 — Decima / DX12
+# appid 查证：Steam storesearch API，2026-07-23（DEATH STRANDING 2: ON THE BEACH = 3280350）
+appid: "3280350"
+slug: death-stranding-2
+name_zh: 死亡搁浅2：冥滩之上
+engine: Decima
+api: d3d12
+backend: d3dmetal
+wine: gptk-wine-3.0-2
+notes_zh: 2026-03-19 由 Nixxes 移植上 PC。

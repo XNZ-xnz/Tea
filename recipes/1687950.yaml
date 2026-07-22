@@ -1,0 +1,12 @@
+# 女神异闻录5 皇家版 — 首个打通目标（社区长期金牌）
+# appid 核实：Steam storefront API，2026-07-23
+appid: "1687950"
+slug: persona-5-royal
+name_zh: 女神异闻录5 皇家版
+engine: 自研
+api: d3d11
+backend: d3dmetal   # v1 全程 D3DMetal 3（gptk-wine 底座）；免费 CX25 系底座出现后评估切 DXMT
+wine: gptk-wine-3.0-2
+env:
+  ROSETTA_ADVERTISE_AVX: "1"   # 官方 GPTK 文档：让游戏检测到 AVX（Rosetta macOS 15+ 实际支持）
+notes_zh: 社区长期金牌，DX11。首发实测目标。

@@ -1,0 +1,12 @@
+# 极限竞速：地平线6 — ForzaTech / DX12
+# appid 核实：Steam storefront API，2026-07-23
+appid: "2483190"
+slug: forza-horizon-6
+name_zh: 极限竞速：地平线6
+engine: ForzaTech
+api: d3d12
+backend: d3dmetal
+wine: gptk-wine-3.0-2
+notes_zh: 现状：Mac 全线崩溃，卡在翻译层适配；如实标注并持续跟踪，勿抱预期。
+known_issues_zh:
+  - 所有 Mac 方案（CrossOver/GPTK/DXMT）目前均无法进入游戏，社区跟踪中

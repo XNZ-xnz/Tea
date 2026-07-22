@@ -1,0 +1,10 @@
+# Endless Legend 2 — 抢先体验中，版本迭代快
+# appid 查证：Steam storesearch API，2026-07-23（ENDLESS Legend™ 2 = 3407390）
+appid: "3407390"
+slug: endless-legend-2
+name_zh: 无尽传奇2
+engine: Unity
+api: d3d11   # Unity 常规默认；待实测核对
+backend: d3dmetal
+wine: gptk-wine-3.0-2
+notes_zh: 抢先体验阶段，build 更新频繁，报告易过期。
