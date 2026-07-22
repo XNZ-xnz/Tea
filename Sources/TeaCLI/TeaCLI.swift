@@ -1,6 +1,27 @@
+import AppKit
 import ArgumentParser
 import Foundation
 import TeaCore
+
+/// wine macdrv 创建的窗口不会自动到前台（Dock 有图标但看不到窗口，2026-07-23 实测）。
+/// 用 CGWindowList 找到 wine 窗口的属主进程并激活——公开 API，无需辅助功能权限。
+func activateWineWindows(retries: Int = 10) {
+    for _ in 0..<retries {
+        let list = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
+        let pids = Set(list.compactMap { w -> pid_t? in
+            let owner = (w["kCGWindowOwnerName"] as? String ?? "").lowercased()
+            guard owner.contains("wine") || owner.contains("steam") else { return nil }
+            return w["kCGWindowOwnerPID"] as? pid_t
+        })
+        if !pids.isEmpty {
+            for pid in pids {
+                NSRunningApplication(processIdentifier: pid)?.activate()
+            }
+            return
+        }
+        Thread.sleep(forTimeInterval: 1)
+    }
+}
 
 @main
 struct TeaCommand: AsyncParsableCommand {
@@ -287,6 +308,11 @@ struct Steam: AsyncParsableCommand {
         func run() throws {
             try SteamManager.launch(prefix: prefix, runtimeId: runtime, silent: silent)
             print("Steam 正在启动（首次启动会自更新，需要几分钟）。")
+            if !silent {
+                print("等待窗口出现并带到前台…")
+                Thread.sleep(forTimeInterval: 8)
+                activateWineWindows()
+            }
         }
     }
 
