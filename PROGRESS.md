@@ -12,6 +12,26 @@
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
 
+## 幸福工厂攻坚第三轮：DXMT/3Shain/自建 DXVK（2026-07-24 凌晨 4-5 点）
+
+追加弹药 7-13，全部实测存档。**结论没变但把每条路的确切拦点钉死了**：
+
+| # | 弹药 | 拦点 |
+|---|---|---|
+| 7 | wine-devel+dxmt-v0.80 完整变体 | `Failed to create metal view: Wine has no exported symbols needed by DXMT`——Gcenx WineHQ 构建的 winemac.so 零导出（修正 P2 nm 静态分析漏了 dlsym 动态探测的错误结论） |
+| 8 | winecx-xom-5.4.2（自带配对 DXMT） | 三次全僵死在进程孵化阶段（零日志零窗口）——winecx 跑 Steam/P5R 正常，独此 UE5 exe 起不来 |
+| 9 | **3Shain wine 9.9**（专为 DXMT 导出符号的 fork）× 树内置 DXMT | 启动器 VC redist 弹窗死循环——**3Shain 是 wine 9.x，比 wine-devel 11.13 老，对 UE5.3 启动器的 prereq 检测有兼容回归**；伪造 VC 注册表全变体无效 |
+| 10 | 3Shain 直跑 Shipping exe（绕过启动器） | `c0000135`（UE5 shipping 依赖链更深，补 steam_api64/ogg/vorbis/aftermath 仍不足） |
+| 11 | **自建上游 DXVK 2.x**（mingw 交叉编译 PE DLL，理论直击 1.10.3 死锁天花板） | **硬 blocker：Xcode license 未接受**——系统唯一 python3 是 Xcode CLT 桩，每次调用即撞墙，连带 meson（要 python）/glslang（要编译）/pip 全瘫。ninja 预编译已拿到，DXVK 源码已 clone（doitsujin/dxvk main），就差工具链 |
+
+**需要产品负责人一条命令解锁弹药 11**（要密码，Claude 无法代办）：
+```
+sudo xcodebuild -license accept
+```
+接受后自建现代 DXVK 全链条即通（源码/ninja/mingw 已就位，只差 meson+glslang，届时可从 wheel/预编译补齐）。这是**目前唯一直击已证实天花板（DXVK 1.10.3 首帧死锁）的主动路线**，成算最高。
+
+**已入库资产（跨会话可复用）**：`wine-3shain-9.9` runtime（带导出符号，等 DXMT 新版或修 UE5 启动器兼容后可用）、`wine-devel-11.13+winemetal+mvk142`（MoltenVK 1.4.2）、DXVK 源码树、ninja 二进制、DXMT dxmt-72 全套 DLL。
+
 ## 幸福工厂攻坚第二轮：六发弹药矩阵（2026-07-24 凌晨 3-4 点，全部实测存档）
 
 前一轮四路线定性后追加六发针对性弹药，全部失败但把死锁定位到了**组件级**：
