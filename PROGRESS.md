@@ -4,8 +4,10 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0-P3 完成；端到端 95%（P5R 已下载入库、启动链到 EULA）→ **产品负责人决定降级 macOS 26，见 HANDOFF.md**
-- **下一步**：降级后按 HANDOFF.md 第六节行动序列执行（预期 EULA 在可见窗口一点即过 → P5R 进标题画面 = 端到端达成）
+- **阶段**：✅ P0-P3 完成；端到端 95%（P5R 已下载入库、启动链到 EULA）；**降级已完成（macOS 26.5.2 / 25F84），环境重建大部分就绪（2026-07-23 下午）**
+- **重建已完成**：仓库克隆至 ~/Projects/Tea + git 身份；brew 装齐 xcodegen/gh/mingw-w64；**数据备份全量恢复**（用户备份在 /Library/Application Support/Tea，已搬回 ~/Library 用户级正确路径）——steam prefix 43GB（登录态 + P5R 39.4GB `tea steam apps` 识别正常）+ 全部 9 个 runtimes + GPTK 提取物；`swift build` 绿；`tea env / runtime list / prefix list / steam apps` 全部正常
+- **待产品负责人**（均需密码/账号，Claude 无法代办）：① `softwareupdate --install-rosetta --agree-to-license`（wine 硬前提）② App Store 装 Xcode 26 → 打开一次 → `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`（swift test 与 App 层需要）③ `gh auth login`（推送需要）
+- **下一步**：Rosetta 装好即 `tea steam launch` → 验证登录窗正常渲染（27beta 噩梦终结标志）→ 登录态在备份里应免登录 → `tea steam game 1687950` → EULA 点 Accept → 进标题画面 = P3 端到端达成
 
 ## 🏆 端到端第三夜战记：扫码登录绕行成功（2026-07-23 凌晨-上午）
 
@@ -97,11 +99,11 @@ cd ~/Projects/Tea
 
 ## 环境事实（2026-07-23 实测）
 
-- MacBook Air M4 / 16GB / macOS 27.0 beta（26A5378n）
-- Xcode 27.0 beta 4（27A5228h）已装于 /Applications/Xcode-beta.app，license 已接受，xcode-select 已切换
-- Rosetta 2 已装；Homebrew 6.0.12；gh 2.96.0 已登录 XNZ-xnz；XcodeGen 2.46.0
+- MacBook Air M4 / 16GB / macOS 26.5.2（25F84，2026-07-23 降级完成）
+- Xcode：**未装**（仅命令行工具，Swift 6.3.2——swift build 可用，swift test 缺 Testing 模块需完整 Xcode 26）
+- Rosetta 2 **未装**（降级后系统全新，wine 硬前提）；Homebrew 已装；gh 2.96.0 **未登录**；XcodeGen 已装；mingw-w64 已装
 - GPTK 4.0 beta 1 dmg：`/Users/xnz/Desktop/Mac Gaming Porting/Game_Porting_Toolkit_4.0_beta_1.dmg`（104,693,519 字节）
-- 磁盘可用约 71GB（P3 装游戏实测前需注意，P5R 约需 30-40GB）
+- 磁盘可用约 97GB；Tea 数据（51GB）已在 ~/Library/Application Support/Tea 就位
 
 ## 问题攒单（攒起来一次性问产品负责人）
 
