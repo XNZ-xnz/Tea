@@ -5,6 +5,7 @@ slug: persona-5-royal
 name_zh: 女神异闻录5 皇家版
 engine: 自研
 api: d3d11
-backend: dxmt        # DX11 金牌路径；per-app 注入（Steam 界面无感），2026-07-23 架构定案
-exe: P5R.exe         # per-app DllOverrides 锚点
+backend: dxmt        # DX11 金牌路径；winecx-xom 内置 DXMT（builtin 即 DXMT，无需注入）
+wine: winecx-xom-5.4.2   # 端到端实测底座：Steam 登录态 + DXMT 内置 + CX 系兼容
+exe: P5R.exe
 notes_zh: 社区长期金牌，DX11。首发实测目标。

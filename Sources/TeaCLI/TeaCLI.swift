@@ -360,15 +360,15 @@ struct Steam: AsyncParsableCommand {
             let plan = store.launchPlan(appid: appid)
             print("启动方案（\(plan.source)）：后端 \(plan.backend.rawValue)，runtime \(plan.runtimeId)")
 
-            if plan.backend == .dxmt {
-                // per-app DXMT：布置 native dll + 给游戏 exe 写 overrides（Steam 界面不受影响）
+            if plan.backend == .dxmt && !plan.runtimeId.contains("xom") {
+                // per-app DXMT 注入仅用于非 XoM 底座（XoM 的 builtin 本身就是 DXMT）。
+                // 注意：DXMT 官方产物均带 wine builtin 标记，native 注入实测无效（见 PROGRESS.md），
+                // 此路径保留等 normal 构建出现；当前 recipes 应指定 wine: winecx-xom-5.4.2。
                 let variant = try BackendManager.assembleWinemetalVariant(wine: "wine-devel-11.13", dxmt: "dxmt-v0.80")
                 try BackendManager.placeDXMTNativeDLLs(prefix: prefix, dxmt: "dxmt-v0.80")
                 if let exe = plan.exe {
                     try BackendManager.setAppDXMTOverrides(prefix: prefix, runtimeId: variant, exe: exe)
                     print("DXMT 已按 exe 精准注入：\(exe)")
-                } else {
-                    print("⚠️ recipe 未声明 exe，DXMT 无法 per-app 注入，游戏将走 wine 内置路径")
                 }
             }
 
