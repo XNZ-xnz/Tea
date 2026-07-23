@@ -4,10 +4,32 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0-P3 完成；端到端 95%（P5R 已下载入库、启动链到 EULA）；**降级已完成（macOS 26.5.2 / 25F84），环境重建大部分就绪（2026-07-23 下午）**
-- **重建已完成**：仓库克隆至 ~/Projects/Tea + git 身份；brew 装齐 xcodegen/gh/mingw-w64；**数据备份全量恢复**（用户备份在 /Library/Application Support/Tea，已搬回 ~/Library 用户级正确路径）——steam prefix 43GB（登录态 + P5R 39.4GB `tea steam apps` 识别正常）+ 全部 9 个 runtimes + GPTK 提取物；`swift build` 绿；`tea env / runtime list / prefix list / steam apps` 全部正常
-- **待产品负责人**（均需密码/账号，Claude 无法代办）：① `softwareupdate --install-rosetta --agree-to-license`（wine 硬前提）② App Store 装 Xcode 26 → 打开一次 → `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`（swift test 与 App 层需要）③ `gh auth login`（推送需要）
-- **下一步**：Rosetta 装好即 `tea steam launch` → 验证登录窗正常渲染（27beta 噩梦终结标志）→ 登录态在备份里应免登录 → `tea steam game 1687950` → EULA 点 Accept → 进标题画面 = P3 端到端达成
+- **阶段**：✅ P0-P3 完成；**降级完成 + 环境重建完成（macOS 26.5.2 / 25F84，Rosetta/Xcode26/gh 全就位）**；🏆 **CEF 黑屏彻底根治，Steam 完整 UI 正常渲染（27beta 噩梦终结）**；⚠️ P5R 游戏进程崩于固定 page fault，端到端最后一环受阻（2026-07-24 凌晨）
+- **CEF 黑屏根治（本轮头号成果）**：黑屏与 macOS 版本无关（26/27 双系统同现象），根因是 Steam 2026 客户端 CEF 126 在 wine 上跨进程建交换链 + winsock TLS 双故障。**steamwebhelper 包装器**（`--disable-gpu --single-process`，见 tools/steamwebhelper-wrapper/）一举根治：**Steam 登录态在、商店/库/详情页全部正常渲染（Tears of Metal 商店页、Now Available 弹窗、库均截图实证）**。配套 Steam.cfg `BootStrapperInhibitAll=enable` 防 bootstrapper 还原包装器。
+- **Steam 底座矩阵（加包装器后重测）**：✅ 能带 CEF UI = wine-devel-11.13+winemetal 微变体、winecx-xom-5.4.2；❌ webhelper not responding = wine-devel+dxmt-v0.80 完整变体、gptk-wine-3.0-2（即使包装器强制软渲染也救不回，DXMT/gptk 的 d3d 注入把 webhelper 拖垮）
+- **P5R blocker（新，未解）**：`tea steam game 1687950` 启动链全通（HasRunKey 跳过 32 位 redist 后 install script 秒过 → P5R.exe 进程起 → 1462×833 窗口上屏），但**窗口纯黑、进程稳定挂起后崩** `Unhandled page fault on read 0x8FF at 0x1401D7EB9`（游戏自身代码固定地址，多次复现）。跨 winecx(DXMT builtin)/wine-devel+winemetal(wined3d 回落)/wine-devel+dxmt 三后端一致；`ROSETTA_ADVERTISE_AVX=1` 实测在 winecx 内确实点亮 AVX（AVX=1 OSXSAVE=1）但**崩溃地址不变**——排除「纯缺 AVX」。崩在图形提交之前，疑似 Denuvo/早期初始化。详见下方「P5R 启动攻坚」。
+- **下一步候选**：① AppleGamingWiki 记 P5R 在 **CrossOver「Perfect」用 DXVK**（D3D11→Vulkan→MoltenVK），而 Tea 全底座走 DXMT（D3D11→Metal 直译）——搭 DXVK+MoltenVK 底座是最有据的方向（需解决 native d3d11 覆盖 vs builtin 标记老问题）② 自编 DXMT normal 构建（notpop fork 07-build-dxmt-fork.sh）③ winedbg 挂上读崩溃调用栈精确定位 0x1D7EB9
+
+## 🏆 CEF 黑屏根治 + P5R 启动攻坚（2026-07-24 凌晨，降级后首夜）
+
+### 环境重建（macOS 26.5.2）全绿
+- 数据备份关键坑：用户把 51GB 备份恢复到系统级 `/Library/Application Support/Tea`，Tea 读的是用户级 `~/Library`——同卷 mv 搬回即全部识别（steam prefix 43GB 含登录态 + P5R 39.4GB、9 个 runtime、GPTK 提取物）。
+- Rosetta 2 / Xcode 26.6（17F113）/ gh 已登录 XNZ-xnz / brew(xcodegen,gh,mingw-w64) 全就位；`swift build` 绿（命令行工具 Swift 6.3.2 即可，`swift test` 需完整 Xcode 的 Testing 模块）。
+- git 用 `/opt/homebrew/bin/git` 绕开 Xcode license 未接受（`xcodebuild -license` 需用户 sudo，未做，不影响 swift build/git）。
+
+### 🎯 CEF 126 黑屏根治（Tea 里程碑）
+- **定性升级**：黑屏在 macOS 26 稳定版**依旧复现**——推翻「27 beta 回归」旧结论。真根因 = Steam 2026 客户端 CEF 126 在 wine 上的两个跨版本故障：①渲染进程跨进程建 D3D11 交换链撞 DXMT #141 → 画黑 ②NetworkService 独立进程走 wine winsock TLS → `handshake failed net_error -100`。
+- **解法**：`steamwebhelper` 包装器（源自 [notpop/steam-on-m1-wine](https://github.com/notpop/steam-on-m1-wine) MIT，入库 tools/steamwebhelper-wrapper/）。改名 Valve 原版为 `steamwebhelper_real.exe`，包装器顶替原名，每次调用前插 `--disable-gpu --single-process` 转发。实测 `ps` 见 `steamwebhelper_real.exe --disable-gpu --single-process` 生效，**Steam 商店/库/详情全部正常上屏（多张截图实证）**。
+- **两参数缺一不可**：`--disable-gpu` 单用（=`-cefdisablegpu`）仍黑；`NetworkServiceInProcess` 单用被 CEF 126 忽略。
+- **防还原**：Steam bootstrapper 启动时校验会还原原版包装器 → 写 `Steam/Steam.cfg` `BootStrapperInhibitAll=enable` 抑制；tea 未来 launch 前应按体积（Valve 原版 >6MB，包装器 <200KB）校验并自愈重装（逻辑见来源仓库 06-install-wrapper.sh）。
+
+### ⚠️ P5R 启动攻坚（未破，blocker 存档）
+- **启动链已全通**：recipe→dxmt 后端→winecx；首次卡 `RunningInstallScript`（32 位 vcredist/DirectX redist 的 .cmd 在纯 64 位/无 cmd 环境跑不动）——**写 HasRunKey 注册表**（`HKLM\Software\Valve\Steam\Apps\CommonRedist\{vcredist\2019,DirectX\Jun2010}` 各 DWORD=1）跳过 → install script 秒过 → P5R.exe 起、1462×833 窗口上屏。
+- **崩溃现象（多后端一致）**：窗口纯黑、进程挂起 ~数分钟后 `wine: Unhandled page fault on read access to 0x8FF at address 0x1401D7EB9`（游戏镜像基址 0x140000000 + 0x1D7EB9，固定复现）。winedbg 无法自启（`--auto` 报 126）→ 进程僵死不退，靠外部 kill。
+- **已排除**：`ROSETTA_ADVERTISE_AVX=1` 实测在 winecx 内点亮 AVX（自编 cpuid.exe：无 flag AVX=0，有 flag AVX=1 OSXSAVE=1），但崩溃地址不变 → 不是「纯缺 AVX」。Steam overlay DLL（GameOverlayRenderer64）禁用无效。P5R 的 AppDefaults DXMT override 清掉、prefix system32 DXMT DLL 清掉再 wineboot 重生 builtin 均无效。
+- **后端对照**：winecx（DXMT builtin d3d11，游戏能 load d3d11 但崩）；wine-devel+winemetal（无 native d3d11 覆盖→游戏回落 wined3d→`None of the requested D3D feature levels supported`）；wine-devel+dxmt 完整变体（Steam webhelper 直接 not responding，游戏 SteamAPI init 失败退出）。
+- **崩点判断**：page fault 在图形提交之前（DLL 刚加载完 steamclient64/kerberos 等，未见 d3d 设备创建日志），指向游戏早期逻辑/反作弊，**疑似 Denuvo**（P5R 带 Denuvo）或 CPU 特性探测的二次分支。
+- **最有据出路**：AppleGamingWiki 记 P5R 在 **CrossOver 评级「Perfect」，方法明确是「Turn on DXVK」**（D3D11→Vulkan→MoltenVK 路线）；Wine 原生评级「Unplayable, doesn't boot」。Tea 全底座走 DXMT（D3D11→Metal），可能正是 P5R 不兼容点。搭 DXVK + MoltenVK 底座为首选下一步（老难点：native d3d11 覆盖需非 builtin 标记 DLL）。
 
 ## 🏆 端到端第三夜战记：扫码登录绕行成功（2026-07-23 凌晨-上午）
 
