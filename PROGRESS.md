@@ -12,6 +12,12 @@
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
 
+## 幸福工厂攻坚（2026-07-24 凌晨续）：CDP 全自动装机成功
+
+- **SteamClient.Installs API 在前端挂载后完全可用**（第三夜的 eInstallState 卡 5 死角只存在于前端未挂载状态）：`-cef-enable-debugging` 起 Steam → SharedJSContext → `OpenInstallWizard([526870])` 弹出渲染完好的安装向导（Satisfactory 28.21GB / C 盘 95.62GB）→ `ContinueInstall()` 确认 → 下载启动。**全程零人工点击**——这就是 P4「一键安装」的机制原型。
+- 幸福工厂无 Denuvo，换底座无激活配额风险。启动路线：首选 recipe 外的 `-vulkan` 启动项（UE5 Vulkan RHI→winevulkan→MoltenVK，与 Steam 同底座免切 wineserver）；备选 recipe 的 gptk-wine+D3DMetal 3（难点：gptk 下 Steam webhelper not responding，需验证 -silent 核心是否够 steam_api 握手）。
+- 监控升级：常驻 watchdog（30s 指纹比对：进程/窗口/下载字节；变化才报事件；**600s 无变化强制 STALLED 报警**；小对话框即时上报）——修复前两轮漏看对话框的问题。
+
 ## 🏆 CEF 黑屏根治 + P5R 启动攻坚（2026-07-24 凌晨，降级后首夜）
 
 ### 环境重建（macOS 26.5.2）全绿
