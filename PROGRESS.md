@@ -25,6 +25,10 @@
 | 5 | **MoltenVK 升级 1.2.7→1.4.2**（新变体 wine-devel-11.13+winemetal+mvk142，已入库可复用） + DXVK | 同 139KB 冻结——**排除 MoltenVK，元凶锁定 DXVK 1.10.3 自身转译死锁** |
 | 6 | `-vulkan` × MoltenVK 1.4.2（正常启动） | 仍实例创建死锁（log 59KB，比 DXVK 死点早）——UE Vulkan RHI 的死结在 winevulkan 层，MVK 升级无关 |
 
+**追加弹药 7/8（2026-07-24 凌晨 4-5 点）**：
+- 弹药7 = wine-devel+dxmt-v0.80 完整变体带游戏：RHIThread 崩溃，stderr 实锤 **`Failed to create metal view, it seems like your Wine has no exported symbols needed by DXMT`**——修正 P2 时代错误结论：nm 静态导入分析漏了 winemetal 的 dlsym 动态探测，**DXMT 在 Gcenx WineHQ 构建上无法工作**（winemac.so 零导出符号）。修复路径明确：notpop 的 08-patch-wine-visibility 方案 / 3Shain wine 构建（导出 17 个符号，nm 证据在其仓库）——**下次会话的第一弹药**。
+- 弹药8 = winecx（自带配对 DXMT）带游戏：三次尝试全部僵死在进程孵化阶段（零输出、零窗口、UE 日志未开）——独立怪癖待查（winecx 跑 Steam 正常、跑 P5R 能到崩溃点，唯独这个 UE5 exe 起不来）。过程坑：**gptk-wine 的 services/plugplay/svchost/rpcss/explorer 服务树不匹配常用 pkill 模式**（要用 `pkill -f wine64-preloader`），残留会霸占 prefix 让新 wine 全部僵死——进 Tea 的进程管理必修课。
+
 **最终定性**：幸福工厂（UE5.3 世代）在当前免费栈的三堵墙：①DX11 唯一可渲染路线（DXVK）死于 **DXVK-macOS 1.10.3（2023 停更）的转译死锁**，且与场景无关（菜单/世界同死点）、与画质无关、与 MoltenVK 版本无关 ②Vulkan RHI 死于 winevulkan 层实例创建 ③DX12 死于 D3DMetal 缺 CX 代 wine 胶水（采样器堆/LUID 双断言）。**出路只剩上游**：DXVK-macOS 现代化重建（VK1.3×MVK1.4 时机已成熟，可自建或催社区）> CX26 系免费衍生底座 > DXMT 补全 UE5 特性。
 
 **产品方向确认（产品负责人 2026-07-24 拍板）**：①不接受绕过游戏菜单/EULA 的方案上产品——用户必须能正常点击游戏自己的界面，直接加载地图只作诊断探针 ②兼容目标改为「某一类型游戏 90% 能进游戏界面」的泛用性，选题从免费栈已验证的 DX11 世代游戏清单入手，UE5 级硬骨头交给底座演进 ③接受「底座工程 + 精选清单 + 配方长尾」打法（Proton/protonfixes 同构），放弃「万能转译层白拿全兼容」幻想。
