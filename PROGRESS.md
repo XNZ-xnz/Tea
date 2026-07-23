@@ -4,8 +4,8 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0-P3 完成 → **端到端进行中：Steam 已登录（扫码绕行成功），P5R 经 steamcmd 下载中（42GB）**
-- **下一步**：下载完成 → relocate-steamcmd-game.sh 1687950 搬进 Steam 库 → 重启 Steam（XoM wine，-silent）→ rungameid 启动 P5R 实测（游戏走 XoM wine 内置 DXMT，D3D 呈现路径已验证正常）
+- **阶段**：✅ P0-P3 完成；端到端 95%（P5R 已下载入库、启动链到 EULA）→ **产品负责人决定降级 macOS 26，见 HANDOFF.md**
+- **下一步**：降级后按 HANDOFF.md 第六节行动序列执行（预期 EULA 在可见窗口一点即过 → P5R 进标题画面 = 端到端达成）
 
 ## 🏆 端到端第三夜战记：扫码登录绕行成功（2026-07-23 凌晨-上午）
 
