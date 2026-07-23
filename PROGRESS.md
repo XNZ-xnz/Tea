@@ -12,6 +12,27 @@
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
 
+## 幸福工厂攻坚战报（2026-07-24 凌晨，四路线定性完毕）
+
+**成果**：CDP 全自动装机 ✓、28.21GB 下载完成 ✓、**游戏引擎实际渲染出画面**（splash/加载屏/菜单加载，DXVK 路线）——但四条图形路线全部在不同深度受阻，暂无法进主菜单交互。逐条存档：
+
+| 路线 | 结果 | 死因（全部实测定位） |
+|---|---|---|
+| `-vulkan`（UE5 原生 Vulkan→winevulkan→MoltenVK） | 引擎挂起 | UE Vulkan RHI 实例创建死锁（日志停在 "Found 0 available instance layers"，CPU 全 0%；DXVK 同栈能建设备，是 UE 的初始化路径触发） |
+| `-dx11` + DXVK 1.10.3（游戏目录 native） | **最接近成功**：splash+加载屏正常渲染数分钟、菜单 widgets 加载完成 | 菜单首个真实 3D 帧（帧号[2]）GPU 命令缓冲死锁。全屏/窗口化/关 SkyLight 实时反射/DXVK_ASYNC 四变量矩阵全试，冻结点不变 |
+| DX12 + D3DMetal 3（gptk-wine 原装） | RHIInit 即崩 | `Assertion failed: GGlobalSamplerDescriptorHeapSize <= MaximumSamplerHeapSize`——UE5.3 全局采样器堆 2048 硬编码 > D3DMetal 上限；Engine.ini cvar 在 RHIInit 后加载，救不了 |
+| `-dx11` + D3DMetal 3 | RHI 选择即崩 | `Assertion failed: bFoundMatchingDevice`——D3DMetal 的 dxgi 枚举与 D3D11 设备 LUID 对不上 |
+
+**过程沉淀（全部可复用）**：
+- **CDP 全自动装机**：`-cef-enable-debugging` → SharedJSContext → `OpenInstallWizard([appid])` → `ContinueInstall()`，零人工。P4「一键安装」机制原型。
+- **下载停滞诊断链**：Steam UI 0bps → content_log `ContentServerDirectoryService failed` + CDN 域名 `xz.pphimalayanrt.com` 解析 0.0.0.0（DNS 污染）→ 宿主网络正常 → **重启 Steam 换新 CM 连接即愈**（CDP `PauseAppUpdate/ResumeAppUpdate` 不够）。诊断功能（5.4）新增检测项。
+- **VC++ 2015-2022 x64 运行库缺失**：HasRunKey 跳过 redist 的副作用；游戏启动器弹窗要装。解法：跑 Steam 自带 `_CommonRedist/vcredist/2022/VC_redist.x64.exe /install /quiet /norestart`（x64 安装器 wine 可跑，32 位才跑不了）。**Tea 应在 prefix 初始化时默认预装**。
+- gptk-wine（CX 系）Windows 用户名是 `crossover` 不是 `xnz`——AppData/日志路径随 wine 切换，排查时必须跟着换。
+- `steam -silent` 下 webhelper 弹窗（not responding）照常出现但**不阻塞** steam.exe 核心与游戏进程；游戏 SteamAPI init 失败（conditions not met）也照样跑（Satisfactory DRM 极轻）。
+- 监控体系定型：常驻 watchdog（进程/窗口/下载指纹 + 600s 停滞报警 + 对话框即报）+ 每实验三重指标（UE 日志尺寸 + 截图字节 + 进程数）。两次抓到人工漏看的对话框。
+
+**后续方向（按优先级）**：① DXVK 路线只差最后一步——试 DXVK 2.x 新版（MoltenVK 1.3 特性成熟后）或 MVK_CONFIG 参数矩阵攻菜单首帧死锁 ② 等 DXMT 支持 UE5 全特性 ③ D3DMetal 采样器堆问题上报 Apple Feedback（附断言证据）④ 关注 CX26 免费衍生底座（AppleGamingWiki 记 CX26.1 可跑）。
+
 ## 幸福工厂攻坚（2026-07-24 凌晨续）：CDP 全自动装机成功
 
 - **SteamClient.Installs API 在前端挂载后完全可用**（第三夜的 eInstallState 卡 5 死角只存在于前端未挂载状态）：`-cef-enable-debugging` 起 Steam → SharedJSContext → `OpenInstallWizard([526870])` 弹出渲染完好的安装向导（Satisfactory 28.21GB / C 盘 95.62GB）→ `ContinueInstall()` 确认 → 下载启动。**全程零人工点击**——这就是 P4「一键安装」的机制原型。
