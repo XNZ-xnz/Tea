@@ -12,6 +12,23 @@
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
 
+## 幸福工厂攻坚第二轮：六发弹药矩阵（2026-07-24 凌晨 3-4 点，全部实测存档）
+
+前一轮四路线定性后追加六发针对性弹药，全部失败但把死锁定位到了**组件级**：
+
+| # | 弹药 | 结果与证据 |
+|---|---|---|
+| 1 | gptk D3DMetal DX11 + `-graphicsadapter=0` | 仍 `bFoundMatchingDevice` 断言——D3DMetal dxgi 枚举与 UE 设备匹配根本不兼容 |
+| 2 | DXVK 直接加载世界 + `MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=1` | 同点冻结（log≈131KB）——排除队列异步提交因素 |
+| 3 | 完整 DXVK 含自家 dxgi + dxvk.conf AMD 伪装 | wine 对 dxgi 的 native 覆盖未生效（nvapi 仍被调用），同点冻结 |
+| 4 | 全最低画质（sg.*=0 + r.* 精简） | **推进最远**（log 139KB vs 131KB）但仍冻——死锁在必经管线，非重型特效 |
+| 5 | **MoltenVK 升级 1.2.7→1.4.2**（新变体 wine-devel-11.13+winemetal+mvk142，已入库可复用） + DXVK | 同 139KB 冻结——**排除 MoltenVK，元凶锁定 DXVK 1.10.3 自身转译死锁** |
+| 6 | `-vulkan` × MoltenVK 1.4.2（正常启动） | 仍实例创建死锁（log 59KB，比 DXVK 死点早）——UE Vulkan RHI 的死结在 winevulkan 层，MVK 升级无关 |
+
+**最终定性**：幸福工厂（UE5.3 世代）在当前免费栈的三堵墙：①DX11 唯一可渲染路线（DXVK）死于 **DXVK-macOS 1.10.3（2023 停更）的转译死锁**，且与场景无关（菜单/世界同死点）、与画质无关、与 MoltenVK 版本无关 ②Vulkan RHI 死于 winevulkan 层实例创建 ③DX12 死于 D3DMetal 缺 CX 代 wine 胶水（采样器堆/LUID 双断言）。**出路只剩上游**：DXVK-macOS 现代化重建（VK1.3×MVK1.4 时机已成熟，可自建或催社区）> CX26 系免费衍生底座 > DXMT 补全 UE5 特性。
+
+**产品方向确认（产品负责人 2026-07-24 拍板）**：①不接受绕过游戏菜单/EULA 的方案上产品——用户必须能正常点击游戏自己的界面，直接加载地图只作诊断探针 ②兼容目标改为「某一类型游戏 90% 能进游戏界面」的泛用性，选题从免费栈已验证的 DX11 世代游戏清单入手，UE5 级硬骨头交给底座演进 ③接受「底座工程 + 精选清单 + 配方长尾」打法（Proton/protonfixes 同构），放弃「万能转译层白拿全兼容」幻想。
+
 ## 幸福工厂攻坚战报（2026-07-24 凌晨，四路线定性完毕）
 
 **成果**：CDP 全自动装机 ✓、28.21GB 下载完成 ✓、**游戏引擎实际渲染出画面**（splash/加载屏/菜单加载，DXVK 路线）——但四条图形路线全部在不同深度受阻，暂无法进主菜单交互。逐条存档：
