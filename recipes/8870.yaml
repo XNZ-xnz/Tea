@@ -37,3 +37,11 @@ notes_zh: >-
   (多年 32位-on-AppleSilicon 异常处理补丁 + 32位D3DMetal/wined3d)，或未来免费 CX系32on64 带同款补丁。
   与 Satisfactory 的 MoltenVK bug 同型：外部依赖硬边界，非配置可解。
   下一步(需外部条件)：获取 CX24 等价免费底座；或 winedbg 逐个补 wine 侧32位异常(Satisfactory级多小时)。
+
+  ★关键翻盘(2026-07-25 续)：栈异常是"禁 nvapi"自造的，nvapi 开启后 crash 彻底消除★
+  正解 dxvk.conf：customVendorId=10de(NVIDIA) + dxvk.enableNvapi=True + nvapiHack=False，
+  WINEDLLOVERRIDES 只禁 gameoverlayrenderer,atiadlxx（**不要禁 nvapi**——DXVK 内置 nvapi 要给游戏用）。
+  效果：VkDevice 干净建成、无 c0000005、无栈异常；经 Steam rungameid 启动可稳定运行 5 分钟不崩
+  （此前每次 10-15s 必崩）。剩：未产生持续交换链/稳定渲染窗，最终仍会退——疑 DRM 检测循环或
+  缺某 COM 类({294935ce-f637-4e7c-a41b-ab255460b862} 未注册)。已从"必崩"推进到"不崩但未稳定渲染"。
+  下一步：查该 COM 类/GameExplorer 依赖，或补 32 位运行库；这已非底座能力问题(crash 已解)。
