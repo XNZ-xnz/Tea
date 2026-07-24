@@ -1,0 +1,26 @@
+# BioShock Infinite（8870）— 32 位 UE3。★进展大但未通关★
+# ★抄作业（2026-07-24 查证）★：AppleGamingWiki/CodeWeavers 社区实测需 CrossOver 24（Wine 9）+
+#   win10 64bit bottle + 关 DXVK/ESync/MSync + 注册 exe 直启。Tea 无 CX24 免费等价底座（gptk=CX22/Wine8）。
+appid: "8870"
+slug: bioshock-infinite
+name_zh: 生化奇兵：无限
+engine: UE3（32 位）
+api: d3d11
+backend: dxvk            # 实测 DXVK 走最深（窗口+设备 FL11_0+交换链）；wined3d 同点崩
+wine: wine-devel-11.13+winemetal+mvk142
+exe: BioShockInfinite.exe
+dll_overrides: "d3d11,dxgi,d3d10core=n,b"
+launch_args: ["-dx10"]   # D3D10 路径更简单（可选）
+env:
+  ROSETTA_ADVERTISE_AVX: "1"
+notes_zh: >-
+  ★2026-07-24 攻坚进展（从"判死"到"引擎运行后崩"）★：
+  三个真 blocker 已清：①旧 wineserver 版本冲突(956/755)致静默秒退——切 wine 必须先 wineserver -k 全清
+  ②开场 Bink 视频在 32 位下崩——移走 XGame/Movies 的 6 个开场片(AMDLogo720p/BSI_AnimatedLogo_720p2997/
+  UE3AnimatedLogo_ProRes/LoopingMovieUntilStartupFinishes/IrrationalLogoTest/2KLogoSweep720p2997，
+  stash 在 Movies/_startup_stash/) ③Steam overlay 注入(已 .disabled)。
+  清完后：全尺寸 BioShock Infinite 窗口(1470x956)+D3D11 设备 FL11_0+交换链全部建成、引擎运行。
+  ★剩余 blocker：窗口创建后约 10-15s 触发 UE3 Fatal error(Address=0x0 空指针)★——
+  **与图形后端无关**(DXVK/wined3d 同点同崩)，是游戏自身代码在 32 位 wine 上踩空指针，换后端无效。
+  与社区结论一致：此游戏需 CX24/Wine9 的 32 位修复面，Tea 免费 wine 尚缺。
+  下一步：winedbg 挂 32 位进程抓 null-deref 调用栈(Satisfactory 级调试)，或等 CX24 等价免费底座。
