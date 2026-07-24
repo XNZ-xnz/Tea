@@ -12,6 +12,31 @@
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
 
+## 🏆 里程碑：自建现代 DXVK 打通（2026-07-24 上午，产品负责人接受 Xcode license 后）
+
+**Tea 核心技术资产诞生**：把 2026 最新上游 DXVK（doitsujin/dxvk main，DXVK 3.0.2）现代化到能在
+Apple M4 + MoltenVK 1.4.2 + wine-devel 11.13 上跑——**DXVK-macOS 现代化重建首次成功实证**
+（社区 Gcenx/DXVK-macOS 停在 2023 的 1.10.3，正是幸福工厂各前序方案撞死的天花板）。补丁+构建+部署
+全套入库 `patches/dxvk-macos-m4/`。
+
+**幸福工厂日志深度三连进（=渗透深度实证）**：DXMT 43K → DXVK-macOS 1.10.3 停 139K 死锁 →
+**自建 DXVK 逐关突破**：设备建成 FL 11_0 ✓ → 交换链建成 ✓（异种嫁接警告消失）→ 查询崩点修复 ✓。
+
+**打通步骤（全部实测，patch diff 在 patches/）**：
+1. 工具链：`brew install meson ninja glslang`（Xcode license 接受后即通；之前系统唯一 python3 是
+   Xcode CLT 桩，撞 license 墙连锁瘫痪 meson/glslang/pip——已解）+ mingw-w64 交叉编译。
+2. 4 特性门 required→optional（geometryShader/shaderCullDistance/depthClipEnable/robustBufferAccess2+nullDescriptor）
+   ——M4 MoltenVK 不报告这些，改后适配器不再被 DXVK 过滤，D3D11 设备建成。
+3. 交换链：DLL 需同时放游戏目录**和 prefix system32**（异种嫁接：DXVK 的 dxgi 要被 d3d11 认作同源）。
+   ⚠️ system32 部署会污染同 prefix 其他游戏（P5R），**收尾已还原 system32、DXVK 仅留游戏目录**（per-game 正解）。
+4. 查询容错补丁：d3d11_query.cpp GetData 对 MoltenVK Invalid/Failed 查询 `continue`（当作完成数据为0）
+   而非致命 INVALID_CALL——越过 PollQueryResults 崩点。
+
+**当前边界**：越过查询崩点后深入 RHI 运行时，遇**无调用栈的空指针访问（读 0x0）**。性质已根本改变——
+从「无可用 D3D11 转译器」变为「自建 DXVK 可用、剩游戏特定运行时崩」，需调试器级排查（无栈盲补=猜，
+不再是"路对不对"而是"具体 bug 猎杀"）。此 DXVK 补丁对所有 DX11 游戏通用。**下一步**：winedbg/lldb
+挂栈定位 null-deref，或试 DXVK 老 tag（2.3.x）对比，或换 UE 版本更低的 DX11 游戏先验证栈可玩性。
+
 ## 幸福工厂攻坚第三轮：DXMT/3Shain/自建 DXVK（2026-07-24 凌晨 4-5 点）
 
 追加弹药 7-13，全部实测存档。**结论没变但把每条路的确切拦点钉死了**：
