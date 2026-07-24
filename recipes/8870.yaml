@@ -86,3 +86,13 @@ notes_zh: >-
   Satisfactory 该类所有 DXVK 补丁(NonUniform/固定数组/格式)全失败，只 D3DMetal 治好；BioShock 32位用不了。
   ★★绝对终点：BioShock=129FPS运行+场景确证渲染+黑帧根因定位到tonemap着色器(非格式)。
   与Satisfactory同MoltenVK硬边界，唯一解药D3DMetal被32位堵死。会话内已穷尽。★★
+
+  ★★重要新认知(2026-07-25，推翻"同Satisfactory")★★：
+  实测 BioShock 60个片段着色器 **0个用动态采样器堆索引**(幸福工厂bug特征)——**BioShock黑帧≠幸福工厂bug！**
+  黑帧定位在 tonemap，但成因是**后处理/HDR**（非采样器堆codegen），性质不同、潜在可修。
+  证据：游戏内置 F7键=`set D3DRenderDevice bUsePostProcessEffects False`(专为关后处理)；
+  配置有 Bloom/UseHighQualityBloom/MotionBlur=True。
+  尝试配置关bloom→游戏改走d3d9路径→wined3d崩(DXVK只覆盖d3d11未覆盖d3d9)，已回退。
+  运行时F7切换受游戏窗口焦点/输入可靠性限制未能干净验证。
+  ★下一步(明确、非死路)：①用DXVK覆盖d3d9(需开enable_d3d9重编)让d3d9也走DXVK ②可靠地把F7送进游戏窗口
+  ③找tonemap/曝光PS(非采样器堆)看具体codegen。BioShock比Satisfactory更有希望——不是同一堵墙。★
