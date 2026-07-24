@@ -38,10 +38,14 @@ int main(void) {
     float prio = 1.0f;
     VkDeviceQueueCreateInfo qci = { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO };
     qci.queueFamilyIndex = 0; qci.queueCount = 1; qci.pQueuePriorities = &prio;
-    VkPhysicalDeviceVulkan12Features want12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+    VkPhysicalDeviceDynamicRenderingFeatures wantDyn = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES };
+    wantDyn.dynamicRendering = VK_TRUE;
+    VkPhysicalDeviceVulkan12Features want12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES, &wantDyn };
     want12.shaderOutputLayer = f12.shaderOutputLayer;
     want12.shaderOutputViewportIndex = f12.shaderOutputViewportIndex;
+    const char* devExts[] = { "VK_KHR_dynamic_rendering" };
     VkDeviceCreateInfo dci = { VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, &want12 };
+    dci.enabledExtensionCount = 1; dci.ppEnabledExtensionNames = devExts;
     dci.queueCreateInfoCount = 1; dci.pQueueCreateInfos = &qci;
     VkDevice dev; CK(vkCreateDevice(pd, &dci, NULL, &dev));
     VkQueue q; vkGetDeviceQueue(dev, 0, 0, &q);
@@ -122,12 +126,15 @@ int main(void) {
     cba.colorWriteMask = 0xF;
     VkPipelineColorBlendStateCreateInfo cb = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
     cb.attachmentCount = 1; cb.pAttachments = &cba;
-    VkGraphicsPipelineCreateInfo gp = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    VkFormat colFmt = imci.format;
+    VkPipelineRenderingCreateInfo prci = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+    prci.colorAttachmentCount = 1; prci.pColorAttachmentFormats = &colFmt;
+    VkGraphicsPipelineCreateInfo gp = { VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, &prci };
     gp.stageCount = 2; gp.pStages = st;
     gp.pVertexInputState = &vi; gp.pInputAssemblyState = &ia;
     gp.pViewportState = &vps; gp.pRasterizationState = &rs;
     gp.pMultisampleState = &ms; gp.pColorBlendState = &cb;
-    gp.layout = pl; gp.renderPass = rp;
+    gp.layout = pl; gp.renderPass = VK_NULL_HANDLE;   // dynamic rendering
     VkPipeline pipe; CK(vkCreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &gp, NULL, &pipe));
 
     // 读回缓冲
@@ -151,14 +158,29 @@ int main(void) {
     VkCommandBufferBeginInfo cbi = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
     CK(vkBeginCommandBuffer(cmd, &cbi));
 
-    VkClearValue clear = { .color = { { 0, 0, 0, 0 } } };
-    VkRenderPassBeginInfo rbi = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-    rbi.renderPass = rp; rbi.framebuffer = fb;
-    rbi.renderArea = sc; rbi.clearValueCount = 1; rbi.pClearValues = &clear;
-    vkCmdBeginRenderPass(cmd, &rbi, VK_SUBPASS_CONTENTS_INLINE);
+    PFN_vkCmdBeginRenderingKHR pBegin = (PFN_vkCmdBeginRenderingKHR)vkGetDeviceProcAddr(dev, "vkCmdBeginRenderingKHR");
+    PFN_vkCmdEndRenderingKHR pEnd = (PFN_vkCmdEndRenderingKHR)vkGetDeviceProcAddr(dev, "vkCmdEndRenderingKHR");
+    VkImageMemoryBarrier ib = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+    ib.srcAccessMask = 0; ib.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    ib.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; ib.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    ib.image = img; ib.subresourceRange = (VkImageSubresourceRange){ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        0, 0, NULL, 0, NULL, 1, &ib);
+    VkRenderingAttachmentInfo cai = { VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+    cai.imageView = view; cai.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    cai.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; cai.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    VkRenderingInfo ri = { VK_STRUCTURE_TYPE_RENDERING_INFO };
+    ri.renderArea = sc; ri.layerCount = LAYERS;   // DXVK dynamic rendering 路径
+    ri.colorAttachmentCount = 1; ri.pColorAttachments = &cai;
+    pBegin(cmd, &ri);
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
-    vkCmdDraw(cmd, 3, LAYERS, 0, 0);   // 4 个实例，VS: gl_Layer = gl_InstanceIndex
-    vkCmdEndRenderPass(cmd);
+    vkCmdDraw(cmd, 3, LAYERS, 0, 0);
+    pEnd(cmd);
+    VkImageMemoryBarrier ib2 = ib;
+    ib2.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT; ib2.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    ib2.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; ib2.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, 0, NULL, 0, NULL, 1, &ib2);
 
     VkBufferImageCopy regions[4];
     for (uint32_t i = 0; i < LAYERS; i++) {
