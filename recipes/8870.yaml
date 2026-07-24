@@ -55,3 +55,17 @@ notes_zh: >-
   ★最终定论：BioShock(32位)在 Tea 免费栈到此为止。已消除所有可解 crash、推进到设备建成，
   剩 wine 32位signal栈异常处理硬缺陷。等 CX24 等价免费底座 or wine 上游修 wow64 32位异常。★
   产品建议：64位DX11游戏无此死角(AoTS 55-60FPS可玩已证)，选题避开32位老游戏。
+
+  ★★重大突破(2026-07-25)：所有崩溃清零，游戏以 110-129 FPS 运行★★
+  完整可用配置(直启, Steam在场)：
+  - dxvk.conf: customVendorId=10de(NVIDIA) + dxvk.enableNvapi=True + nvapiHack=False
+  - WINEDLLOVERRIDES="d3d11,dxgi,d3d10core=n,b;gameoverlayrenderer,atiadlxx=d;winedbg.exe=d"
+    (关键：禁 atiadlxx，**不禁 nvapi**)
+  - 装 DirectX Jun2010 redist(XAudio2_7/X3DAudio/D3DCompiler_43)
+  - Config bForceNoMovies=TRUE(避开 Bink 视频的32位signal栈异常)
+  - 切 wine 前 wineserver -k 全清
+  效果：LOADING 加载画面实际渲染、DXVK HUD 稳定 110-129 FPS、交换链1470x956/切菜单1024x666、零崩溃。
+  **"运行"彻底达成——从判死到 129 FPS。所有 crash/signal 异常/AMD 路径全部清零。**
+  ★剩余：高FPS但黑帧——DXVK→MoltenVK 把画面译黑，与 Satisfactory pre-D3DMetal 同型★
+  Satisfactory 靠换 D3DMetal 治好；BioShock 是32位，D3DMetal 用不了(gptk 引擎前退)。
+  下一步：X光 DXVK 渲染目标查黑帧根因(同 Satisfactory 手法)，或等32位D3DMetal/免费CX底座。
