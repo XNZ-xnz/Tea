@@ -12,6 +12,20 @@
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
 
+## b 路验证：BioShock Infinite（2026-07-24 下午）— 32 位游戏死角，与 DXVK 无关
+
+选 BioShock Infinite（8870，DXVK 官方黄金测试游戏）验证自建 DXVK 完整闭环，过程沉淀丰富但**game 本身卡在图形初始化前**：
+- **CDP 全自动装机 → EULA 正确停等**（Take-Two EULA，产品负责人授权后 CDP 定位 EULA 独立 CEF page 点 Accept）→ 下载。**印证 Tea 不盲目绕过用户界面**。
+- 下载中途 CDN 掐死（`dl.steam.clngaa.com` 解析到 198.18.x Fake-IP）→ 重启 Steam 换 CM 续传（老招见效，16GB 装完）。
+- **意外：BioShock 是 32 位游戏**（`Binaries/Win32/BioShockInfinite.exe`，且 `2kLauncherRemoved.txt` 表明 exe 即本体）。补编 **32 位 DXVK**（同补丁，i686-w64-mingw32，build-win32.txt）成功。
+- 预备组件：vcredist 2008/2010 x86 + DirectX Jun2010 D3DX（DXSETUP /silent，装出 d3dx11_43/d3dcompiler_43）。
+- **卡点定性（决定性）**：游戏进程起后僵在 CFRunLoop（NSApplication run）**无窗、无 d3d11 设备**。虚拟桌面模式（`explorer /desktop`）让 DXVK 加载到 MoltenVK 枚举 M4，但仍停在设备创建前。**baseline wined3d（不用 DXVK）同样卡在同一点** → **彻底隔离：与 DXVK 无关，是这个 32 位游戏在 wow64 下的早期启动死角**（Steam DRM 上下文 / 32 位 wow64 / 游戏 early-init 之一）。
+- **教训**：验证自建 DXVK 应选 **64 位 DX11 游戏**（我的 64 位 DXVK 已在幸福工厂证明设备+交换链可建）。BioShock 的 32 位属性拖出一个正交的 wow64 死角，非 DXVK 能力问题。候选 64 位 DX11：用户库里 Age of Mythology Retold、BG3（Vulkan/DX11）等。
+- **附带成果**：Surge 三订阅配置（Flower_SS/Nexitally/WgetCloud）`always-real-ip` 加 steam CDN 白名单（*.steamcontent.com/*.steamserver.net/*.pphimalayanrt.com/*.eccdnx.com/*.clngaa.com/*.steamstatic.com），根治下载 Fake-IP 掐断（待用户在 Surge reload 生效）。原配置备份在 scratchpad/surge-backup。
+
+## P5R 复测（2026-07-24 下午）：Denuvo 配额仍未重置
+锁定组合（wine-devel-11.13+winemetal + DXVK + AVX）启动 P5R，仍 `codefusion.technology` 88500006。**关键纪律：每次尝试可能再烧一次激活、把 24h 窗口后推——已彻底停手让配额零尝试冷却，杀进程不点弹窗任何按钮**。图形栈健康（能到 Denuvo 校验），纯 DRM 限流。下次碰 P5R 前先确认 >24h 无任何启动。
+
 ## 🏆 里程碑：自建现代 DXVK 打通（2026-07-24 上午，产品负责人接受 Xcode license 后）
 
 **Tea 核心技术资产诞生**：把 2026 最新上游 DXVK（doitsujin/dxvk main，DXVK 3.0.2）现代化到能在
