@@ -23,4 +23,9 @@ notes_zh: >-
   ★剩余 blocker：窗口创建后约 10-15s 触发 UE3 Fatal error(Address=0x0 空指针)★——
   **与图形后端无关**(DXVK/wined3d 同点同崩)，是游戏自身代码在 32 位 wine 上踩空指针，换后端无效。
   与社区结论一致：此游戏需 CX24/Wine9 的 32 位修复面，Tea 免费 wine 尚缺。
-  下一步：winedbg 挂 32 位进程抓 null-deref 调用栈(Satisfactory 级调试)，或等 CX24 等价免费底座。
+  ★续攻(winedbg 抓栈)★：第一现场 c0000005 读 null，崩溃时加载 atiadlxx.dll——DXVK 默认报 AMD，
+  游戏走 AMD ADL 查询崩。修复：dxvk.conf 报 NVIDIA(customVendorId=10de) + 禁 atiadlxx/nvapi override。
+  → 崩点移位（越过 AMD 路径，VkInstance 建成又销毁），转为"Exception frame not in stack limits"(32位栈异常)。
+  **多堵墙串联**（已清 wineserver污染→Bink视频→overlay→atiadlxx，现剩 32位栈异常）——与 Satisfactory
+  同型，与社区"需 CX24 多年32位修复"结论一致。装了 DirectX Jun2010 redist(XAudio2_7/X3DAudio/D3DCompiler_43)。
+  下一步：winedbg 抓栈异常源，或等 CX24 等价免费底座。已到"引擎运行+越过AMD路径"深度。
