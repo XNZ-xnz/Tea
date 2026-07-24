@@ -196,3 +196,30 @@ HLSL→(wine d3dcompiler_47)→DXBC→(dxbc-spirv 原生 dxbc_compiler)→SPIR-V
    的 2D LUT 组）、光源常量缓冲——需逐一验证内容而非绑定
 2. dxbc-spirv（2026 新编译器）对某类着色器模式的静默错译（描述符错位/常量缓冲偏移错）
 3. 验证键盘可达性（方向键在菜单里能否移动选择）→ 控制台 → `viewmode unlit` 现场二分
+
+## 🎯 根因定位（2026-07-25 凌晨，X 光机确诊）
+
+**黑屏真凶：色调映射像素着色器被 MoltenVK 错译，无论 HDR 输入多亮都输出近零。**
+光照/几何/场景渲染**全部正常**——问题只在最后一步 tonemap。
+
+**决定性证据链**（自制 DXVK 渲染目标 X 光机取得，钩子代码在补丁的 d3d11_context.cpp/d3d11_swapchain.cpp，
+TEA_DUMP_RT/TEA_DUMP_PRESENT 环境变量门控）：
+1. **HDR SceneColor 缓冲（fmt10 R16G16B16A16_FLOAT）转出即为完整点亮的城市工厂场景**
+   （evidence-hdr-scenecolor-fully-lit.png：霓虹招牌/建筑/地面反射/雾气全在，mean=0.31）
+2. **tonemap 后的目标（fmt24 R10G10B10A2）mean=0.0001**——近乎纯零
+3. 呈现的背缓冲 mean=0.03（只剩 UMG UI 和自发光，UI 不过 tonemap 所以可见）
+4. 凶手 PS 指纹：`fs.3f67bfcfd49b44644715da05f8a3aff9`（.spv/.dxbc 已存本目录）——
+   用**运行期无界描述符数组（bindless）**，独立 SPIRV-Cross 直接抛
+   `Runtime sized variables must be in device storage argument buffers`；MoltenVK 内部虽能编译
+   但产出错误（输出恒近零）
+
+**排除「曝光」全家**（都实验过仍黑，证明不是曝光值而是着色器结构性错译）：
+`r.DefaultFeature.AutoExposure=0` + `r.EyeAdaptation.MethodOverride=0`（手动固定）、`+8EV`（×256）、
+`r.EyeAdaptationQuality=0`、Basic 方法、`r.UsePreExposure=0` —— 无一改变。
+`r.TonemapperFilm=0`（传统 tonemapper）反而连 UI 一起黑（另一条 MoltenVK 坏路）。
+
+**修复方向（下一场）**：
+1. 定位该 bindless tonemapper 的 MSL 错译点：拿 fs.3f67 的 .spv 喂 MoltenVK 内部 SPIRV-Cross
+   （非独立版）dump MSL，对比 tier-2 argument buffer 下的描述符索引是否错位
+2. DXVK 侧：把该类 runtime-sized descriptor array 降级为固定上限数组（避开 MoltenVK bindless 路径）
+3. 或升级/自编带修复的 MoltenVK；关注 SPIRV-Cross argument-buffer 描述符索引相关提交

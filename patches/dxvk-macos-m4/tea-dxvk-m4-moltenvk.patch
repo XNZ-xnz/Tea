@@ -1,3 +1,130 @@
+diff --git a/src/d3d11/d3d11_context.cpp b/src/d3d11/d3d11_context.cpp
+index c7fa610a..8810eb87 100644
+--- a/src/d3d11/d3d11_context.cpp
++++ b/src/d3d11/d3d11_context.cpp
+@@ -2259,6 +2259,98 @@ namespace dxvk {
+   }
+ 
+ 
++
++  // Tea X 光: 把当前绑定的 RTV0（即将被换下）拷到 staging 落盘。
++  // 触发: 环境变量 TEA_DUMP_RT=1。只抓 >=640 宽的 2D 彩色目标（SceneColor 类）。
++  // 产物: /tmp/tea-rt-dumps/NNNN_<w>x<h>_fmt<f>.raw + index.txt
++  template<typename ContextType>
++  void D3D11CommonContext<ContextType>::TeaDumpOutgoingRenderTarget() {
++    static int enabled = -1;
++    if (enabled < 0) {
++      const char* e = std::getenv("TEA_DUMP_RT");
++      enabled = (e && e[0] == '1') ? 1 : 0;
++      if (enabled) {
++        #ifdef _WIN32
++        CreateDirectoryA("Z:\\tmp\\tea-rt-dumps", nullptr);
++        #endif
++      }
++    }
++    if (!enabled)
++      return;
++
++    static uint32_t seen = 0;
++    static uint32_t dumped = 0;
++
++    auto rtv = m_state.om.rtvs[0].ptr();
++    if (!rtv)
++      return;
++
++    D3D11_RENDER_TARGET_VIEW_DESC vd;
++    rtv->GetDesc(&vd);
++    if (vd.ViewDimension != D3D11_RTV_DIMENSION_TEXTURE2D)
++      return;
++
++    Com<ID3D11Resource> res;
++    rtv->GetResource(&res);
++    Com<ID3D11Texture2D> tex;
++    if (FAILED(res->QueryInterface(IID_PPV_ARGS(&tex))))
++      return;
++
++    D3D11_TEXTURE2D_DESC td;
++    tex->GetDesc(&td);
++    bool big   = td.Width >= 640u;
++    bool tiny  = td.Width <= 2u && td.Height <= 2u;   // 曝光纹理类
++    if ((!big && !tiny) || td.SampleDesc.Count != 1u)
++      return;
++
++    seen++;
++    // 跳过前 600 个（启动/加载期），抓菜单期的 ~160 个 pass 边界
++    if (seen < 600u || dumped >= 160u)
++      return;
++
++    D3D11_TEXTURE2D_DESC sd = td;
++    sd.Usage = D3D11_USAGE_STAGING;
++    sd.BindFlags = 0;
++    sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
++    sd.MiscFlags = 0;
++    sd.MipLevels = 1;
++    sd.ArraySize = 1;
++
++    Com<ID3D11Device> dev;
++    m_parent->QueryInterface(IID_PPV_ARGS(&dev));
++    Com<ID3D11Texture2D> staging;
++    if (FAILED(dev->CreateTexture2D(&sd, nullptr, &staging)))
++      return;
++
++    auto self = static_cast<ContextType*>(this);
++    self->CopySubresourceRegion(staging.ptr(), 0, 0, 0, 0, tex.ptr(), vd.Texture2D.MipSlice, nullptr);
++
++    D3D11_MAPPED_SUBRESOURCE map = { };
++    if (FAILED(self->Map(staging.ptr(), 0, D3D11_MAP_READ, 0, &map)))
++      return;
++
++    char path[256];
++    std::snprintf(path, sizeof(path), "Z:\\tmp\\tea-rt-dumps\\%04u_%ux%u_fmt%u.raw",
++      dumped, td.Width, td.Height, uint32_t(td.Format));
++    if (FILE* f = std::fopen(path, "wb")) {
++      for (uint32_t y = 0; y < td.Height; y++)
++        std::fwrite(reinterpret_cast<const char*>(map.pData) + size_t(y) * map.RowPitch,
++          1, map.RowPitch, f);
++      std::fclose(f);
++      // Tea: 记录该目标最后一次绘制所用的 PS（凶手指纹）
++      if (m_state.ps != nullptr) {
++        Logger::info(str::format("Tea: dump ", dumped, " fmt=", uint32_t(td.Format),
++          " ", td.Width, "x", td.Height, " lastPS=",
++          m_state.ps->GetCommonShader()->GetName()));
++      }
++      dumped++;
++      if ((dumped % 20u) == 0u)
++        Logger::info(str::format("Tea: RT dump ", dumped, "/160"));
++    }
++    self->Unmap(staging.ptr(), 0);
++  }
++
++
+   template<typename ContextType>
+   void STDMETHODCALLTYPE D3D11CommonContext<ContextType>::OMSetRenderTargets(
+           UINT                              NumViews,
+@@ -2266,6 +2358,10 @@ namespace dxvk {
+           ID3D11DepthStencilView*           pDepthStencilView) {
+     D3D10DeviceLock lock = LockContext();
+ 
++    // Tea X 光: TEA_DUMP_RT=1 时，把被换下的大尺寸彩色 RT 落盘（仅立即上下文）
++    if (!IsDeferred)
++      TeaDumpOutgoingRenderTarget();
++
+     SetRenderTargetsAndUnorderedAccessViews(
+       NumViews, ppRenderTargetViews, pDepthStencilView,
+       NumViews, 0, nullptr, nullptr);
+diff --git a/src/d3d11/d3d11_context.h b/src/d3d11/d3d11_context.h
+index 666ae132..cc5ad7e3 100644
+--- a/src/d3d11/d3d11_context.h
++++ b/src/d3d11/d3d11_context.h
+@@ -1097,6 +1097,8 @@ namespace dxvk {
+             UINT                              NumSamplers,
+             ID3D11SamplerState* const*        ppSamplers);
+ 
++    void TeaDumpOutgoingRenderTarget();
++
+     void SetRenderTargetsAndUnorderedAccessViews(
+             UINT                              NumRTVs,
+             ID3D11RenderTargetView* const*    ppRenderTargetViews,
 diff --git a/src/d3d11/d3d11_query.cpp b/src/d3d11/d3d11_query.cpp
 index 440ccaa7..8291f671 100644
 --- a/src/d3d11/d3d11_query.cpp
@@ -36,6 +163,51 @@ index 440ccaa7..8291f671 100644
          if (status == DxvkGpuQueryStatus::Pending)
            return S_FALSE;
        }
+diff --git a/src/d3d11/d3d11_swapchain.cpp b/src/d3d11/d3d11_swapchain.cpp
+index cbcc3c6c..78baf68f 100644
+--- a/src/d3d11/d3d11_swapchain.cpp
++++ b/src/d3d11/d3d11_swapchain.cpp
+@@ -379,6 +379,40 @@ namespace dxvk {
+     auto immediateContext = m_parent->GetContext();
+     auto immediateContextLock = immediateContext->LockContext();
+ 
++    // Tea 验尸: TEA_DUMP_PRESENT=1 时每 300 帧转储游戏交来的 D3D 背缓冲
++    {
++      static int en = -1;
++      static uint32_t n = 0, dumped = 0;
++      if (en < 0) { const char* e = std::getenv("TEA_DUMP_PRESENT"); en = (e && e[0]=='1') ? 1 : 0; }
++      if (en && !m_backBuffers.empty() && (++n % 300u) == 0u && dumped < 4u) {
++        D3D11_TEXTURE2D_DESC td;
++        m_backBuffers[0]->GetDesc(&td);
++        D3D11_TEXTURE2D_DESC sd = td;
++        sd.Usage = D3D11_USAGE_STAGING; sd.BindFlags = 0;
++        sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ; sd.MiscFlags = 0;
++        sd.MipLevels = 1; sd.ArraySize = 1;
++        Com<ID3D11Texture2D> staging;
++        if (SUCCEEDED(m_parent->CreateTexture2D(&sd, nullptr, &staging))) {
++          immediateContext->CopySubresourceRegion(staging.ptr(), 0, 0, 0, 0, m_backBuffers[0].ptr(), 0, nullptr);
++          D3D11_MAPPED_SUBRESOURCE map = { };
++          if (SUCCEEDED(immediateContext->Map(staging.ptr(), 0, D3D11_MAP_READ, 0, &map))) {
++            char path[256];
++            std::snprintf(path, sizeof(path), "Z:\\tmp\\tea-rt-dumps\\present%u_%ux%u_fmt%u.raw",
++              dumped, td.Width, td.Height, uint32_t(td.Format));
++            if (FILE* f = std::fopen(path, "wb")) {
++              for (uint32_t y = 0; y < td.Height; y++)
++                std::fwrite(reinterpret_cast<const char*>(map.pData) + size_t(y) * map.RowPitch, 1, map.RowPitch, f);
++              std::fclose(f);
++              Logger::info(str::format("Tea: present dump ", dumped, " fmt=", uint32_t(td.Format),
++                " ", td.Width, "x", td.Height));
++              dumped++;
++            }
++            immediateContext->Unmap(staging.ptr(), 0);
++          }
++        }
++      }
++    }
++
+     immediateContext->EndFrame(m_latency);
+     immediateContext->ExecuteFlush(GpuFlushType::ExplicitFlush, nullptr, true);
+ 
 diff --git a/src/dxvk/dxvk_device_info.cpp b/src/dxvk/dxvk_device_info.cpp
 index ac24f843..c2114f8c 100644
 --- a/src/dxvk/dxvk_device_info.cpp
