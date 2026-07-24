@@ -96,3 +96,12 @@ notes_zh: >-
   运行时F7切换受游戏窗口焦点/输入可靠性限制未能干净验证。
   ★下一步(明确、非死路)：①用DXVK覆盖d3d9(需开enable_d3d9重编)让d3d9也走DXVK ②可靠地把F7送进游戏窗口
   ③找tonemap/曝光PS(非采样器堆)看具体codegen。BioShock比Satisfactory更有希望——不是同一堵墙。★
+
+  ★诊断精修终点(2026-07-25)★：着色器实测=用采样器堆但**静态索引**(非幸福工厂动态索引bug)，
+  能编译能跑129FPS只是运行时输出黑=**值级问题**(曝光/tonemap数值在MoltenVK算成近零)，非编译失败。
+  尝试关后处理显原始场景(3种途径: 配置Bloom=False / bUsePostProcessEffects=False)全部触发游戏脆弱d3d9
+  回退路径崩溃(DXVK未覆盖d3d9)；运行时F7受窗口焦点限制未能干净送入。全部回退，保持129FPS态。
+  ★最诚实定论：BioShock=129FPS稳定运行+场景确证渲染+黑帧根因精修为"值级后处理/曝光"(比Satisfactory
+  的codegen bug更有希望修，但每次绕过尝试都撞游戏32位脆弱性崩溃)。会话内已穷尽所有非破坏性途径。
+  下一步(需更深工作)：①用DXVK覆盖d3d9(enable_d3d9重编)消除关后处理时的崩溃 ②winedbg可靠注入F7
+  ③挖曝光/eye-adaptation compute看MoltenVK数值。★
