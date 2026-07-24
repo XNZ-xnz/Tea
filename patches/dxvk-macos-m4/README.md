@@ -97,7 +97,22 @@ MoltenVK 的 MSL 编译错误在 wine 进程的 stderr（跟着常驻 Steam 的 
 |---|---|
 | `r.ForwardShading=1` | ❌ 早期 init 挂死，已还原 |
 | `r.ShadowQuality=0`（全关阴影） | 仍黑，但 FPS 6.8→13.6 / render pass 127→65（阴影链确实被剥离）——**排除「全被阴影盖黑」** |
-| `r.DefaultFeature.AutoExposure.Bias=8`（+8EV 判别曝光压黑） | 测试中 |
+| `r.DefaultFeature.AutoExposure.Bias=8`（+8EV=256 倍增亮） | 仍纯黑——**排除曝光压黑**（若有任何非零亮度必然过曝） |
+| `r.TiledDeferredShading=0` + `r.LightFunctionQuality=0` | 仍黑——排除 tiled/clustered 光源剔除 |
+| `r.GBufferFormat=0`（8 位法线编码） | 仍黑——排除法线编码精度路径 |
+| `r.SceneColorFormat=2`（RGBA8 场景色） | 仍黑——排除浮点格式加法混合失效 |
+| 游戏内控制台（` 键注入） | 没弹出（疑被 UMG 吞键），type.swift 工具已入库待续 |
+
+**关阴影后 GS 管线失败清零**（实证 GS 三连败=点光源阴影 cubemap，与黑屏正交）。
+
+### 下一会话的武器清单（按威力排序）
+1. **Metal GPU 帧捕获**：`METAL_CAPTURE_ENABLED=1` + `MVK_CONFIG_AUTO_GPU_CAPTURE_SCOPE=2` +
+   `MVK_CONFIG_AUTO_GPU_CAPTURE_OUTPUT_FILE=xxx.gputrace` → Xcode 打开逐 pass 看每个渲染目标内容，
+   直接看到哪一步把光照归零——不再猜。
+2. 游戏内控制台打通（先点击游戏区拿键盘焦点再按 `；或查 Input.ini 绑定），打通后
+   `viewmode unlit` / `vis` 系列即时二分。
+3. 升级 MoltenVK 到最新（SPIRV-Cross 修复可能已上游）；或换 MoltenVK debug 构建拿逐管线日志。
+4. UE 侧偶发 RHIThread 崩溃（FD3D11DynamicRHI::RHIEnd*）待独立排查。
 
 发现极暗轮廓 → 新主假说：场景在渲染但被曝光/色调映射链压到近黑。
 另发现 UE 侧偶发 RHIThread 崩溃（FD3D11DynamicRHI::RHIEnd*，频率约 1/3 启动），与黑屏正交，待查。
