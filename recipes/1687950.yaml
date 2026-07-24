@@ -1,11 +1,22 @@
-# 女神异闻录5 皇家版 — 首个打通目标（社区长期金牌）
+# 女神异闻录5 皇家版 — Denuvo 游戏，底座一旦激活即永久钉死
 # appid 核实：Steam storefront API，2026-07-23
+# ★抄作业结论（2026-07-24 查证）★：AppleGamingWiki/CodeWeavers/MacGamingDB 社区实测
+#   P5R 最佳 = DXVK + ESync（M1 Pro 宫殿 55-60 FPS）；D3DMetal 过场动画严重卡顿，不推荐。
+#   与 Tea 自测一致（wine-devel+DXVK 图形全通直达 Denuvo 校验）。
 appid: "1687950"
 slug: persona-5-royal
 name_zh: 女神异闻录5 皇家版
 engine: 自研
 api: d3d11
-backend: dxmt        # DX11 金牌路径；winecx-xom 内置 DXMT（builtin 即 DXMT，无需注入）
-wine: winecx-xom-5.4.2   # 端到端实测底座：Steam 登录态 + DXMT 内置 + CX 系兼容
+backend: wined3d          # 占位：真实路径=游戏目录自建 DXVK（backend 枚举待加 dxvk 项）
+wine: wine-devel-11.13+winemetal+mvk142
 exe: P5R.exe
-notes_zh: 社区长期金牌，DX11。首发实测目标。
+dll_overrides: "d3d11,dxgi,d3d10core=n,b"
+env:
+  ROSETTA_ADVERTISE_AVX: "1"   # 必须：cpuid 实测点亮 AVX
+  WINEESYNC: "1"               # 社区推荐 ESync（Gcenx 构建含 esync/msync）
+notes_zh: >-
+  Denuvo 纪律：每日约 5 次激活配额，每换底座=新指纹=烧一次激活；激活成功后本 recipe 永久钉死不再换。
+  启动链：Steam(wine-devel-11.13+winemetal, CEF 包装器)在线 → 经 Steam 语境启动。
+  杀进程绝不点 Denuvo 弹窗按钮。上次尝试 2026-07-24 中午（88500006 配额），动手前确认 >24h 零启动。
+  自建 DXVK 三件套放游戏目录（同 AoTS 部署法，勿放 system32）。
