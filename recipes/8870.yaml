@@ -69,3 +69,11 @@ notes_zh: >-
   ★剩余：高FPS但黑帧——DXVK→MoltenVK 把画面译黑，与 Satisfactory pre-D3DMetal 同型★
   Satisfactory 靠换 D3DMetal 治好；BioShock 是32位，D3DMetal 用不了(gptk 引擎前退)。
   下一步：X光 DXVK 渲染目标查黑帧根因(同 Satisfactory 手法)，或等32位D3DMetal/免费CX底座。
+
+  ★★X光确诊(2026-07-25，非猜测)★★：自建32位诊断DXVK转储渲染目标，
+  中间HDR缓冲(fmt26 R11G11B10, 1024x666)亮度0.47、清晰渲染出3D场景几何(雕像/建筑/天空/地面，
+  证据evidence-bioshock-scene-renders.png)，但最终present缓冲全黑。
+  **确凿证实=与Satisfactory同一DXVK→MoltenVK病根：场景渲染了，最后一步post-process/tonemap没送上屏。**
+  Satisfactory靠D3DMetal治好；BioShock 32位用不了D3DMetal(gptk引擎前退)。
+  ★最终定论：BioShock在Tea免费栈=129FPS运行+场景确实渲染，但MoltenVK把最终画面译黑，
+  且32位堵死D3DMetal唯一解药。同Satisfactory硬边界但无绕道。★
