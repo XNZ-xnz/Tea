@@ -28,8 +28,11 @@ MoltenVK 的 MSL 编译错误在常驻 Steam 进程的 stderr 里。
 
 **收官时的唯一大 blocker：光照全灭（黑屏）**。决定性证据：固定曝光后菜单场景可见橙色
 自发光火花粒子、其余全黑——几何和粒子在渲染，光照贡献为零，只剩 emissive。
-UI（UMG）不走场景光照所以一直可见。下一轮候选：`-forwardshading`、ShowFlag 二分、
-对照 GS 阴影管线失败的影响面、聚簇光源网格产出验证。
+UI（UMG）不走场景光照所以一直可见。下一轮候选（已试掉一发）：
+- ❌ `r.ForwardShading=1`（Engine.ini）：游戏挂死在极早期 init（LogInit 后无窗口、CPU 归零），
+  已还原。forward 路径在此栈上另有初始化问题，成本高收益不明，暂弃。
+- 待试：ShowFlag 二分光照链路、GS 阴影管线失败（Metal 无几何着色器）影响面评估、
+  聚簇光源网格 compute 产出验证、对比 AoTS（前向、正常）与 UE 延迟渲染差异。
 Engine.ini 加了 `r.EyeAdaptationQuality=0`（诊断用，备份 Engine.ini.bak，收尾时未还原——
 固定曝光对后续调试有利，等光照修好再还原）。
 
