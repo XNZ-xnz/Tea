@@ -45,3 +45,13 @@ notes_zh: >-
   （此前每次 10-15s 必崩）。剩：未产生持续交换链/稳定渲染窗，最终仍会退——疑 DRM 检测循环或
   缺某 COM 类({294935ce-f637-4e7c-a41b-ab255460b862} 未注册)。已从"必崩"推进到"不崩但未稳定渲染"。
   下一步：查该 COM 类/GameExplorer 依赖，或补 32 位运行库；这已非底座能力问题(crash 已解)。
+
+  ★决定性根因(2026-07-25，采样+signal栈级)★：
+  crash 消除后游戏仍无头运行(NSApplication事件泵正常，但游戏逻辑线程从不建渲染窗)，日志实锤：
+  `err:virtual:virtual_setup_exception nested exception on signal stack`
+  = **wine 处理一个异常时又触发另一个，信号栈嵌套崩溃** —— 这是 wine 对32位游戏在
+  Apple Silicon/Rosetta 上异常处理的根本缺陷。可见崩溃对话框与无头挂起是同一根因两种表现。
+  **正是 CrossOver 专有 CX24 补丁修的东西。** 无任何配置可解，需 wine 源码级32位异常处理补丁。
+  ★最终定论：BioShock(32位)在 Tea 免费栈到此为止。已消除所有可解 crash、推进到设备建成，
+  剩 wine 32位signal栈异常处理硬缺陷。等 CX24 等价免费底座 or wine 上游修 wow64 32位异常。★
+  产品建议：64位DX11游戏无此死角(AoTS 55-60FPS可玩已证)，选题避开32位老游戏。
