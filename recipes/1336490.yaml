@@ -11,10 +11,12 @@ exe: Against the Storm.exe
 dll_overrides: "d3d11,dxgi,d3d10core=n,b"
 notes_zh: >-
   自建 DXVK 3.0.2（patches/dxvk-macos-m4/）三件套放游戏目录即可，勿放 prefix system32（会污染同 prefix 其他游戏）。
-  实测：Direct3D 11.0 FL 11_0、Renderer 报 Apple M4、主菜单可鼠标交互、可进局内世界地图。
+  实测（2026-07-24，M4/16GB/macOS 26.5.2）：Direct3D 11.0 FL 11_0、局内真实玩法 55-60 FPS
+  贴 60Hz 满帧（中位 57.6，GPU 64-99%）、世界地图 60 锁满、主菜单 33-43。产品负责人亲手试玩确认可玩。
   **首次运行必做**：游戏内 OPTIONS→VIDEO 把 Graphics Quality 从 High 降到 Low（云端存档会把用户
-  Windows 主机的 High 同步过来）——draw call 11360→5633、GPU 100%→44%。分辨率不用动（实测非瓶颈）。
-  帧率绝对数字待干净环境重测（见 PROGRESS「帧率结论修订」）。
+  Windows 主机的画质档同步过来，High 下菜单 draw call 11360、GPU 打满）。分辨率不用动（实测非瓶颈）。
+  **已知问题：失焦启动会让 Unity 冻死在主菜单**（不可恢复，需杀进程重启）——启动后必须把游戏窗口
+  带到前台并在加载期间保持（Tea 启动器应内置此行为；诊断脚本用 osascript 按 unix id 设 frontmost 循环）。
   禁用：MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS（实测钉死在 0.5 FPS 且污染 DXVK 着色器缓存）。
   待办：BackendManager 需新增 dxvk 后端枚举，把「DLL 拷游戏目录 + override」固化成一等公民装配路径；
   P4 首次运行向导应对「云端画质档过高」给出提示（这条对所有 Steam Cloud 游戏通用）。

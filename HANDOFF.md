@@ -12,7 +12,7 @@
 | **Steam 客户端** | ✅ 完整可用（CEF 黑屏已根治，登录态 bombpee/XNZ 在） | 无 |
 | **P5R**（1687950，Denuvo） | 图形栈验证可用；卡 Denuvo 激活配额 88500006，**冷却中** | 确认 >24h 零启动后用锁定组合一次通关（见 §3.1） |
 | **幸福工厂**（526870，UE5.3） | 自建 DXVK 下渲染最深；`-nosound` 绕过音频崩点后撞交换链 887A0004 | §3.2 的组合矩阵还剩 2-3 发 |
-| **Against the Storm**（1336490，Unity DX11） | 🏆 **已通关到可交互主菜单**（2026-07-24 15:30，截图+HUD+日志三重实证） | 只剩 5-6 FPS 帧率问题，见 PROGRESS「AoTS 里程碑」段 |
+| **Against the Storm**（1336490，Unity DX11） | 🏆 **端到端可玩**：局内 55-60 FPS 贴满帧，产品负责人亲手试玩确认（2026-07-24） | 写 compat 报告；把「保焦点启动」进 Tea 启动器 |
 | **BioShock Infinite**（8870，32 位） | 判死封存：wow64 早期启动死角，与 DXVK 无关（wined3d baseline 同卡点） | 不投入；等 wow64 演进 |
 | **自建 DXVK**（核心资产） | ✅ 上游 DXVK 3.0.2 + 5 处补丁，64/32 位都已编译，**已被 AoTS 实证可用** | 复用到一切 DX11 游戏 |
 
@@ -115,9 +115,10 @@
 - 组合：`wine-devel-11.13+winemetal+mvk142` 底座 + 游戏目录自建 DXVK + `WINEDLLOVERRIDES="d3d11,dxgi,d3d10core=n,b"`，经 Steam `rungameid` 启动。
 - 实证：Unity 2021.3.45f2 / `Direct3D 11.0 [level 11.0]` / `Renderer: Apple M4` / DXVK HUD `3.0.2 + MoltenVK 1.4.2`；
   CGEvent 模拟点击可关弹窗、主菜单 PLAY/OPTIONS/QUIT 完整渲染。
-- **帧率已解决到 22.6 FPS**：真凶是云端同步来的 `High` 画质档，游戏内 OPTIONS→VIDEO 降到 Low 即可
-  （draw call 11360→5633，FPS 4.8→22.6）。**分辨率不是杠杆**（像素砍 57% 帧率零变化），原生 2560×1664 反而最快。
-  `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1` 判定有害且会污染 DXVK 着色器缓存，勿用。详见 PROGRESS 帧率攻坚段。
+- **帧率已终局：局内真实玩法 55-60 FPS 贴 60Hz 满帧**（干净机器实测，此前一切低帧数字都是
+  系统故障进程拖垮机器 + 失焦冻结造成的测量假象）。两个必做：①首跑降画质到 Low（云端会同步来
+  Windows 主机的 High 档）②启动后保持游戏窗口前台（失焦启动会冻死在菜单）。
+  `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1` 有害且污染 DXVK 着色器缓存，勿用。详见 PROGRESS「终局」段。
 - ⚠️ **本段旧结论（「FL 11_1」「A* 寻路跑过」「游戏干净自退」）已作废**——那是读到了 Steam Cloud 恢复的
   2024 年 Windows 主机 Player.log。AoTS 的 Player.log **会被 Steam Cloud 同步覆盖**，读日志前必须先验产物归属
   （mtime / md5 / 日志内 GPU 与系统字段）。
