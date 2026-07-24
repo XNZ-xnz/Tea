@@ -77,12 +77,14 @@ public enum PEImports {
         return dlls
     }
 
-    /// 按导入表猜图形后端。DX10/11 → DXMT（per-app 注入，金牌路径）；
-    /// DX12 → d3dmetal（启动链待通，先如实标注）；其余 → dxmt 兜底。
+    /// 按导入表猜图形后端。
+    /// ★战略（2026-07-24 幸福工厂黑屏战定型）：D3DMetal 第一优先★
+    /// ——CrossOver 同款路线，绕开 MoltenVK 的 codegen 坑；DX10/11/12 全走 d3dmetal，
+    /// 穷尽 d3dmetal 后才在 recipe 里退 dxvk/dxmt；DX9 无 D3DMetal 支持走 wined3d 兜底。
     public static func guessBackend(of exe: URL) -> GraphicsBackend {
-        guard let dlls = try? importedDLLs(of: exe) else { return .dxmt }
-        if dlls.contains(where: { $0.hasPrefix("d3d12") }) { return .d3dmetal }
-        return .dxmt
+        guard let dlls = try? importedDLLs(of: exe) else { return .d3dmetal }
+        if dlls.contains(where: { $0.hasPrefix("d3d9") }) { return .wined3d }
+        return .d3dmetal
     }
 
     static func readU16(_ d: Data, _ o: Int) -> UInt16 {

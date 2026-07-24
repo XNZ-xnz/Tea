@@ -2,9 +2,9 @@ import Foundation
 
 /// 图形后端。
 public enum GraphicsBackend: String, Sendable, CaseIterable {
-    case dxmt       // DX10/11 → Metal（默认）
-    case d3dmetal   // DX12 → Metal（用户导入 GPTK 后可用）
-    case wined3d    // wine 内置 GL 路径，兜底
+    case d3dmetal   // ★第一优先★ DX10/11/12 → Metal（CrossOver 同款路线，gptk-wine 内置）
+    case dxmt       // DX10/11 → Metal（开源补充，简单游戏可用）
+    case wined3d    // wine 内置 GL 路径，兜底（DX9 等 D3DMetal 不覆盖时）
 }
 
 public enum BackendError: Error, LocalizedError {

@@ -86,11 +86,26 @@ public struct RecipeStore: Sendable {
                 source: "recipe"
             )
         }
-        let backend = exePath.map { PEImports.guessBackend(of: $0) } ?? .dxmt
+        // ★D3DMetal 第一优先★（2026-07-24 定型）：默认后端 d3dmetal + gptk-wine，
+        // 附官方环境变量（GPTK Read Me）。DX9 等 D3DMetal 不覆盖的才回落其他底座。
+        let backend = exePath.map { PEImports.guessBackend(of: $0) } ?? .d3dmetal
+        let runtime: String
+        var env: [String: String] = [:]
+        switch backend {
+        case .d3dmetal:
+            runtime = "gptk-wine-3.0-2"
+            env = [
+                "D3DM_SUPPORT_DXR": "1",
+                "ROSETTA_ADVERTISE_AVX": "1",
+                "D3DM_ENABLE_METALFX": "1",
+            ]
+        default:
+            runtime = SteamManager.defaultRuntime
+        }
         return LaunchPlan(
             backend: backend,
-            runtimeId: SteamManager.defaultRuntime,
-            environment: [:],
+            runtimeId: runtime,
+            environment: env,
             exe: exePath?.lastPathComponent,
             source: "default"
         )
