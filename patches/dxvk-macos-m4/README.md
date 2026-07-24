@@ -116,3 +116,23 @@ MoltenVK 的 MSL 编译错误在 wine 进程的 stderr（跟着常驻 Steam 的 
 
 发现极暗轮廓 → 新主假说：场景在渲染但被曝光/色调映射链压到近黑。
 另发现 UE 侧偶发 RHIThread 崩溃（FD3D11DynamicRHI::RHIEnd*，频率约 1/3 启动），与黑屏正交，待查。
+
+### 光照黑屏·收敛理论（2026-07-24 深夜末，证据链最强）
+
+**主嫌：色调映射 LUT 的 3D 纹理分层渲染损坏**（MoltenVK 的 VS 写 gl_Layer 路径疑似无效）。
+UE 把 32³ 调色 LUT 用 32 层分层渲染写入 Volume 纹理；若只有第 0 层（最暗输入段）被正确写入：
+- 暗输入映射正常 → 「黑的还是黑」不露馅
+- 亮输入采到未初始化层 → 归零 → **场景全灭**
+- Coffee Stain logo 实测只剩约 5% 亮度（过 LUT）、UMG UI 满亮（不过 LUT）——完美吻合
+- 自发光火花 = HDR 极亮值采样边缘层的残值
+
+**已完整排除**（全部实验记录在案）：阴影、曝光（+8EV 在手动挡无效为无效实验，后以
+UsePreExposure=0 + Basic 自动挡补测仍黑）、PreExposure、整数混合、tiled 剔除、GBuffer 格式、
+场景色格式、GS 管线（关阴影后清零）、MVK fast-math。
+
+**验证/修复路径**：
+1. 最小 Vulkan 复现：VS 写 gl_Layer 渲到 3D/数组附件，读回验证各层 —— 定 MoltenVK 责任
+2. MoltenVK HEAD brew 构建失败；改从 GitHub release/自编 MoltenVK 换版本对照
+3. 若实锤：修 MoltenVK（Metal 支持 VS render_target_array_index，大概率是 MoltenVK 管线胶水 bug）
+   或 DXVK 侧把 3D RTV 分层绘制改写为逐层多 pass（重）
+4. 平行路径：游戏内控制台（`被吞）打通后 `r.LUT.Size` 等现场试
