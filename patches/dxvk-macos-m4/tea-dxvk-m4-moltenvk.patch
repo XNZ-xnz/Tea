@@ -1,8 +1,26 @@
 diff --git a/src/d3d11/d3d11_query.cpp b/src/d3d11/d3d11_query.cpp
-index 440ccaa..2174d28 100644
+index 440ccaa7..8291f671 100644
 --- a/src/d3d11/d3d11_query.cpp
 +++ b/src/d3d11/d3d11_query.cpp
-@@ -268,10 +268,13 @@ namespace dxvk {
+@@ -253,8 +253,15 @@ namespace dxvk {
+     if (m_desc.Query == D3D11_QUERY_EVENT) {
+       DxvkGpuEventStatus status = m_event[0]->test();
+ 
+-      if (status == DxvkGpuEventStatus::Invalid)
+-        return DXGI_ERROR_INVALID_CALL;
++      // Tea/MoltenVK tolerance: a broken GPU event would otherwise surface as
++      // a fatal DXGI_ERROR_INVALID_CALL (UE appErrors on it) or, if reported
++      // as unsignaled, make the engine wait forever. Report it as signaled.
++      if (status == DxvkGpuEventStatus::Invalid) {
++        Logger::warn("D3D11Query: GPU event in invalid state, reporting as signaled");
++        if (pData != nullptr)
++          *static_cast<BOOL*>(pData) = TRUE;
++        return S_OK;
++      }
+       
+       bool signaled = status == DxvkGpuEventStatus::Signaled;
+ 
+@@ -268,10 +275,13 @@ namespace dxvk {
        for (uint32_t i = 0; i < MaxGpuQueries && m_query[i] != nullptr; i++) {
          DxvkGpuQueryStatus status = m_query[i]->getData(queryData[i]);
  
@@ -19,7 +37,7 @@ index 440ccaa..2174d28 100644
            return S_FALSE;
        }
 diff --git a/src/dxvk/dxvk_device_info.cpp b/src/dxvk/dxvk_device_info.cpp
-index ac24f84..c2114f8 100644
+index ac24f843..c2114f8c 100644
 --- a/src/dxvk/dxvk_device_info.cpp
 +++ b/src/dxvk/dxvk_device_info.cpp
 @@ -830,7 +830,7 @@ namespace dxvk {
@@ -61,3 +79,47 @@ index ac24f84..c2114f8 100644
  
        /* Sample locations, used to "disable" MSAA rendering */
        ENABLE_EXT(extSampleLocations, false),
+diff --git a/src/dxvk/dxvk_fence.cpp b/src/dxvk/dxvk_fence.cpp
+index 8485c40d..06679e72 100644
+--- a/src/dxvk/dxvk_fence.cpp
++++ b/src/dxvk/dxvk_fence.cpp
+@@ -193,6 +193,14 @@ namespace dxvk {
+ 
+   void DxvkFence::initKmtHandles() {
+ #ifdef _WIN32
++    // Tea/MoltenVK: VK_KHR_external_semaphore_win32 is never available on MoltenVK,
++    // so this proc address is null. Guard against jumping to address 0 (same crash
++    // class as DxvkResourceAllocation::initKmtHandles).
++    if (!m_vkd->vkGetSemaphoreWin32HandleKHR) {
++      Logger::warn("DxvkFence::initKmtHandles: vkGetSemaphoreWin32HandleKHR not available, skipping");
++      return;
++    }
++
+     VkSemaphoreGetWin32HandleInfoKHR win32HandleInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR };
+     win32HandleInfo.semaphore = m_semaphore;
+     win32HandleInfo.handleType = m_info.sharedType;
+diff --git a/src/dxvk/dxvk_memory.cpp b/src/dxvk/dxvk_memory.cpp
+index 69a11600..83da6d45 100644
+--- a/src/dxvk/dxvk_memory.cpp
++++ b/src/dxvk/dxvk_memory.cpp
+@@ -335,6 +335,14 @@ namespace dxvk {
+     auto device = m_allocator->device();
+     auto vk = device->vkd();
+ 
++    // Tea/MoltenVK: VK_KHR_external_memory_win32 is never available on MoltenVK,
++    // so this proc address is null. Upstream assumes Windows drivers always have it
++    // and calls it unguarded, which jumps to address 0. Fail gracefully instead.
++    if (!vk->vkGetMemoryWin32HandleKHR) {
++      Logger::warn("DxvkResourceAllocation::initKmtHandles: vkGetMemoryWin32HandleKHR not available, skipping");
++      return;
++    }
++
+     VkMemoryGetWin32HandleInfoKHR handleInfo = { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
+     handleInfo.handleType = handleType;
+     handleInfo.memory = m_memory;
+diff --git a/subprojects/dxbc-spirv b/subprojects/dxbc-spirv
+--- a/subprojects/dxbc-spirv
++++ b/subprojects/dxbc-spirv
+@@ -1 +1 @@
+-Subproject commit c5c1a5b9b61773d59592f628faa39be9add26282
++Subproject commit c5c1a5b9b61773d59592f628faa39be9add26282-dirty

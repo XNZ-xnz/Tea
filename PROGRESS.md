@@ -2,6 +2,29 @@
 
 > 每完成一个阶段更新本文件：当前状态、已定决策、下一步。换新会话先读 CLAUDE.md 再读这里。
 
+## 🏆 幸福工厂（UE5.3）主菜单打穿（2026-07-24 晚，一夜三补丁）
+
+**「UE5 世代交给底座演进」的旧结论作废**——主菜单完整渲染可交互（Continue/New Game/Load、
+补丁公告面板、Steam 头像 XNZ 全出），compute shader 正常执行（dispatch 91/帧），445+ 帧零崩溃。
+三个自研 DXVK 补丁按序打穿三堵墙（全部进 patches/dxvk-macos-m4/，细节见该 README）：
+
+| # | 墙 | 根因（全部实锤到代码行） | 修法 |
+|---|---|---|---|
+| 1 | SynthBenchmark 段 PC=0 崩溃（即交接文档里的「无栈 null-deref」） | DXVK `initKmtHandles` 不检查 `vkGetMemoryWin32HandleKHR`（MoltenVK 无此扩展，指针为 NULL）直接调用 | 空指针守卫（dxvk_memory.cpp + dxvk_fence.cpp） |
+| 2 | 全部带 groupshared 的 compute shader 编译失败（MSL: `use of undeclared identifier 'gl_WorkGroupSize'`）→ DEVICE_LOST → RHIBlockUntilGPUIdle 挂死 | 上游给 Workgroup 变量挂 NullConstant 初始化器，Metal 不支持，SPIRV-Cross 的模拟清零代码引用了未声明变量（MoltenVK 1.4.2 内置 SPIRV-Cross bug） | 去掉初始化器（dxbc-spirv spirv_builder.cpp；D3D11 本就不保证 groupshared 清零） |
+| 3 | UE D3D11Query.cpp:366 appError（DXGI_ERROR_INVALID_CALL） | UE 拿 EVENT 查询当 GPU fence，MoltenVK 事件 Invalid 时上游抛致命错误 | Invalid 事件按已触发放行（d3d11_query.cpp） |
+
+**破案方法论**（本轮最大方法资产）：lldb/sample 对 Rosetta+wine 进程全部失灵（attach 挂死），
+真正的钥匙是 **UE 自带崩溃产物**：`Saved/Crashes/UECC-*/UEMinidump.dmp` 手解出异常码+崩溃 PC
+（PC=0 → 空函数指针调用而非读空数据），栈回扫锁定 `d3d11.dll+0x10603A`，游戏带 PDB +
+`x86_64-w64-mingw32-objdump` 反汇编直接看到 `call *0x7a8(%rbx)` 与函数名。
+MoltenVK 的 MSL 编译错误在常驻 Steam 进程的 stderr 里。
+
+**已知残留（下一轮）**：菜单 3D 背景纯黑；菜单 10.1 FPS（4051 draws，GPU 100%）；
+`VK_FORMAT_R16G16_UINT` 混合告警。尚未点 Continue 进存档实测。
+过程附带坑：游戏 kill -9 后 Steam 短时间内认为「Game already running」会吞掉 rungameid；
+Steam 掉线弹 Refresh Sign In 也会以 Launching... 卡死的形式挡启动——两者都表现为「游戏没起来」。
+
 ## 当前状态
 
 - **阶段**：✅ P0-P3 完成；**降级完成 + 环境重建完成（macOS 26.5.2 / 25F84，Rosetta/Xcode26/gh 全就位）**；🏆 **CEF 黑屏彻底根治，Steam 完整 UI 正常渲染（27beta 噩梦终结）**；🏆 **Against the Storm 端到端可玩（2026-07-24，自建 DXVK）：局内真实玩法 55-60 FPS 贴满帧，产品负责人亲手试玩确认**——Tea 首款从安装到可玩全链路打通的游戏（帧率攻坚全程见「终局」段，含对中途多次错误结论的修订）

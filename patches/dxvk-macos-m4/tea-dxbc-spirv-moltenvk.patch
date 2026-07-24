@@ -1,0 +1,39 @@
+diff --git a/spirv/spirv_builder.cpp b/spirv/spirv_builder.cpp
+index a836099..6b9c4b9 100644
+--- a/spirv/spirv_builder.cpp
++++ b/spirv/spirv_builder.cpp
+@@ -822,8 +822,15 @@ void SpirvBuilder::emitDclLds(const ir::Op& op) {
+   auto typeId = getIdForType(op.getType());
+   auto ptrTypeId = getIdForPtrType(typeId, spv::StorageClassWorkgroup);
+ 
++  // Tea/MoltenVK: do NOT zero-initialize workgroup memory via a variable
++  // initializer. Metal threadgroup memory cannot have initializers, so
++  // SPIRV-Cross (as bundled in MoltenVK 1.4.2) emulates it with generated
++  // zero-fill code that references gl_WorkGroupSize without declaring it,
++  // failing MSL compilation for every compute shader that uses groupshared
++  // memory. D3D11 does not guarantee zeroed groupshared memory anyway
++  // (scratch is left uninitialized for the same reason, see below).
+   pushOp(m_declarations, spv::OpVariable, ptrTypeId, varId,
+-    spv::StorageClassWorkgroup, getIdForConstantNull(op.getType()));
++    spv::StorageClassWorkgroup);
+ 
+   addEntryPointId(varId);
+ }
+@@ -4050,9 +4057,14 @@ void SpirvBuilder::emitSetCsWorkgroupSize(const ir::Op& op) {
+   auto y = uint32_t(op.getOperand(2u));
+   auto z = uint32_t(op.getOperand(3u));
+ 
+-  pushOp(m_executionModes, spv::OpExecutionModeId, m_entryPointId,
+-    spv::ExecutionModeLocalSizeId,
+-    makeConstU32(x), makeConstU32(y), makeConstU32(z));
++  // Tea/MoltenVK: use the classic literal LocalSize execution mode instead of
++  // LocalSizeId. SPIRV-Cross (as bundled in MoltenVK 1.4.2) fails to emit the
++  // gl_WorkGroupSize constant declaration in MSL when the workgroup size is
++  // specified via LocalSizeId, breaking every compute shader that reads the
++  // WorkgroupSize builtin (MSL compile error: use of undeclared identifier).
++  // The sizes are compile-time literals here, so the classic form loses nothing.
++  pushOp(m_executionModes, spv::OpExecutionMode, m_entryPointId,
++    spv::ExecutionModeLocalSize, x, y, z);
+ }
+ 
+ 
