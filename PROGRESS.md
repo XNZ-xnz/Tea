@@ -2,6 +2,35 @@
 
 > 每完成一个阶段更新本文件：当前状态、已定决策、下一步。换新会话先读 CLAUDE.md 再读这里。
 
+## 🏆🏆 战略转折：幸福工厂黑屏根治——D3DMetal 后端（CrossOver 同款路线）（2026-07-24 深夜）
+
+**黑屏彻底解决，画面正常渲染，可进游戏世界（产品负责人亲眼确认）。** 方法 = **换掉整条
+DXVK+MoltenVK，改用 D3DMetal 后端 + `-dx11`——与 CrossOver 完全相同的组合。**
+
+**为什么这是本项目最重要的结论**：
+- 一整夜死磕 DXVK+MoltenVK，8 个补丁把引擎/存档/交互全打通，最后查到 SPIR-V 指令级证明黑屏是
+  **MoltenVK 对 DXVK 3.x「全局采样器堆动态索引」的 codegen bug**（tonemap 采到错采样器→输出全零；
+  证据：HDR SceneColor 缓冲里场景完整点亮，只死在最后 tonemap 一步）。四种工作区（arg-buffer 模式、
+  NonUniform、固定数组、曝光全家桶）全部无效——**纯开源栈填不平这个坑**。
+- 换 D3DMetal（苹果 GPTK，CrossOver/Whisky 同款）一次通：日志 `Using Forced RHI: D3D11` /
+  Feature Level 11_1 / D3DMetal 伪装 'AMD Compatibility Mode'(VendorId 10de) 12GB 显卡 →
+  **整条 MoltenVK 不经过，bug 自然绕开**。这就是 CrossOver「加个 -dx11 就行」的全部秘密：
+  背后是 D3DMetal，不是 MoltenVK。
+
+**产品级战略结论（写死）**：**Tea 的主力图形后端应是 D3DMetal（用户导入 GPTK），DXVK 仅作
+简单 DX11 游戏的开源补充。** 硬骨头（UE5 等用 DXVK 最新特性的游戏）走 D3DMetal 绕开 MoltenVK 坑。
+这条路已被 CrossOver 用几百款游戏证明可行——Tea 复刻成功。
+
+**幸福工厂落地细节**（recipe 526870.yaml 已更新）：
+- backend=d3dmetal / wine=gptk-wine-3.0-2 / launch_args=[-dx11] / env: D3DM_SUPPORT_DXR/ROSETTA_ADVERTISE_AVX/D3DM_ENABLE_METALFX
+- 撤走游戏目录 DXVK 三件套（stash 在 _dxvk_stash/）；gptk-wine8 上启动器卡 loader_section，
+  需直启 -Shipping exe 绕过；默认用户是 crossover（存档/日志在 crossover profile）
+- 已知残留：帧率偏低（D3DMetal on wine8 跑 UE5 的性能课题，正确性已达成）
+- 工具：tools/diagnostics/sf-run-d3dmetal.sh
+
+**DXVK 侧的 8 个补丁仍是有价值资产**（让 UE5 引擎在开源栈上初始化/存档/交互全通，对简单 DX11 游戏
+通用），黑屏根因分析（SPIR-V 级 + 最小复现材料）可报 KhronosGroup/MoltenVK 上游。
+
 ## 🏆 幸福工厂（UE5.3）主菜单打穿（2026-07-24 晚，一夜三补丁）
 
 **「UE5 世代交给底座演进」的旧结论作废**——主菜单完整渲染可交互（Continue/New Game/Load、
