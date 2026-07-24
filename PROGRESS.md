@@ -20,8 +20,19 @@
 `x86_64-w64-mingw32-objdump` 反汇编直接看到 `call *0x7a8(%rbx)` 与函数名。
 MoltenVK 的 MSL 编译错误在常驻 Steam 进程的 stderr 里。
 
-**已知残留（下一轮）**：菜单 3D 背景纯黑；菜单 10.1 FPS（4051 draws，GPU 100%）；
-`VK_FORMAT_R16G16_UINT` 混合告警。尚未点 Continue 进存档实测。
+**同夜续战（补丁 7/8）**：点 Continue 加载存档世界撞出两个新墙，全部破掉——
+- **原子 Store 的 MSL 编译失败**（`atomic_store(...).x`，SPIRV-Cross 对 void 返回值补 `.x`）
+  → 改发 OpAtomicExchange 丢弃结果。**落地后 DEVICE_LOST 清零、RenderThread 挂死清零、
+  存档世界加载成功且游戏线程持续跑帧**。
+- 整数格式附件混合告警 → 按 D3D11 语义强制关闭（对光照黑屏无效，但合规）。
+
+**收官时的唯一大 blocker：光照全灭（黑屏）**。决定性证据：固定曝光后菜单场景可见橙色
+自发光火花粒子、其余全黑——几何和粒子在渲染，光照贡献为零，只剩 emissive。
+UI（UMG）不走场景光照所以一直可见。下一轮候选：`-forwardshading`、ShowFlag 二分、
+对照 GS 阴影管线失败的影响面、聚簇光源网格产出验证。
+Engine.ini 加了 `r.EyeAdaptationQuality=0`（诊断用，备份 Engine.ini.bak，收尾时未还原——
+固定曝光对后续调试有利，等光照修好再还原）。
+
 过程附带坑：游戏 kill -9 后 Steam 短时间内认为「Game already running」会吞掉 rungameid；
 Steam 掉线弹 Refresh Sign In 也会以 Launching... 卡死的形式挡启动——两者都表现为「游戏没起来」。
 

@@ -98,6 +98,26 @@ index 8485c40d..06679e72 100644
      VkSemaphoreGetWin32HandleInfoKHR win32HandleInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR };
      win32HandleInfo.semaphore = m_semaphore;
      win32HandleInfo.handleType = m_info.sharedType;
+diff --git a/src/dxvk/dxvk_graphics.cpp b/src/dxvk/dxvk_graphics.cpp
+index d0332175..3b7eeada 100644
+--- a/src/dxvk/dxvk_graphics.cpp
++++ b/src/dxvk/dxvk_graphics.cpp
+@@ -317,6 +317,15 @@ namespace dxvk {
+             cbAttachments[i] = state.omBlend[i].state();
+             cbAttachments[i].colorWriteMask = writeMask;
+ 
++            // Tea/MoltenVK: D3D11 ignores blending on integer formats, but Vulkan
++            // requires blendEnable to be false for them. MoltenVK warns and renders
++            // incorrectly (observed: UE5 clustered light grid on R16G16_UINT breaks,
++            // blacking out all lighting). Force-disable blending for integer formats.
++            if (cbAttachments[i].blendEnable
++             && (formatInfo->flags.test(DxvkFormatFlag::SampledUInt)
++              || formatInfo->flags.test(DxvkFormatFlag::SampledSInt)))
++              cbAttachments[i].blendEnable = VK_FALSE;
++
+             // If we're rendering to an emulated alpha-only render target, fix up blending
+             if (cbAttachments[i].blendEnable && formatInfo->componentMask == VK_COLOR_COMPONENT_R_BIT && state.omSwizzle[i].rIndex() == 3) {
+               cbAttachments[i].srcColorBlendFactor = util::remapAlphaToColorBlendFactor(
 diff --git a/src/dxvk/dxvk_memory.cpp b/src/dxvk/dxvk_memory.cpp
 index 69a11600..83da6d45 100644
 --- a/src/dxvk/dxvk_memory.cpp

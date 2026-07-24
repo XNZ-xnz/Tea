@@ -39,6 +39,17 @@ Apple M4 + MoltenVK 1.4.2 + wine-devel 11.13 上跑起来。**这是 DXVK-macOS 
 6. **LocalSize 用经典字面量形式**（同文件 emitSetCsWorkgroupSize）：`LocalSizeId` 形式在
    MoltenVK 的 SPIRV-Cross 上路径较新，改回 `OpExecutionMode LocalSize` 字面量（尺寸本就是
    编译期常量，零损失，防御性修改）。
+7. **原子 Store 改发 OpAtomicExchange 丢弃结果**（同文件 emitAtomic，2026-07-24 深夜新增）：
+   SPIRV-Cross 翻译纹理/纹素缓冲原子操作时统一在 MSL 调用后补 `.x` 分量提取——对有返回值的
+   原子合法，对返回 void 的 `atomic_store` 生成 `atomic_store(...).x`（MSL 编译错误）。
+   Exchange 丢结果与 Store 语义等价。**此补丁 + 下面第 8 条落地后幸福工厂 DEVICE_LOST 清零**。
+
+### 主仓库补丁（续）
+
+8. **整数格式附件强制关混合**（`src/dxvk/dxvk_graphics.cpp`，2026-07-24 深夜新增）：
+   D3D11 语义下驱动忽略整数格式上的混合，DXVK 原样传给 Vulkan（违反 Vulkan 规范），
+   MoltenVK 告警 `Blending is enabled for attachment VK_FORMAT_R16G16_UINT`。
+   按 D3D11 语义强制 `blendEnable=false`。（注：修完告警消失，但未解决光照黑屏——见下）
 
 ## 构建
 
@@ -62,10 +73,15 @@ DXVK 三件套放游戏 `Binaries/Win64/` 目录，启动加
 ## 当前边界（2026-07-24 晚）
 
 - **Against the Storm（Unity DX11）**：端到端可玩，局内 55-60 FPS 贴满帧（详见 PROGRESS）。
-- **Satisfactory（UE5.3 DX11）**：补丁 3/4/5 落地后**主菜单完整渲染可交互**（Continue/New Game/
-  Load 全出、compute shader 正常执行、445+ 帧零崩溃）——「UE5 世代交给底座演进」的旧结论作废，
-  Tea 自己就是底座演进。已知残留：菜单 3D 背景纯黑、菜单 10 FPS（4051 draws/GPU 100%），
-  以及一处 `VK_FORMAT_R16G16_UINT` 混合告警，下一轮攻。
+- **Satisfactory（UE5.3 DX11）**：全部 8 项补丁落地后——主菜单可交互、**存档世界可加载**、
+  **DEVICE_LOST 清零、RenderThread 挂死清零**、compute shader 全部编译执行。
+  **剩一个大问题：光照全灭（黑屏）**。决定性证据：固定曝光（Engine.ini
+  `r.EyeAdaptationQuality=0`，已写入用户配置待还原）后菜单场景能看到**橙色自发光火花粒子**，
+  其余全黑——几何/粒子在渲染，但所有光源贡献为零，只剩 emissive。嫌疑排查状态：
+  ①整数格式混合已修（无效）②聚簇光照的光源网格 compute（dispatch 在跑但产出可能为零）
+  ③GS 阴影管线失败（Metal 无 GS，`Fragment input(s) user(locn2) mismatching`——阴影不该全黑）
+  ④下一步候选：对比 AoTS（前向渲染正常）与 UE 延迟渲染差异；试 `-forwardshading`；
+  用 UE ShowFlag/console 变量二分光照链路；查 light grid 的 R32G32B32A32 纹理采样路径。
 - 旧的「无栈 null-deref」定性已破案：就是补丁 4 修的 PC=0 空函数指针调用，
   当时无栈是因为跳到地址 0 后栈帧无从回溯；用 UE 自带 minidump 的栈回扫 + PDB 反汇编定位。
 

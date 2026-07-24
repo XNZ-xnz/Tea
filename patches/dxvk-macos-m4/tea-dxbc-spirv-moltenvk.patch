@@ -1,5 +1,5 @@
 diff --git a/spirv/spirv_builder.cpp b/spirv/spirv_builder.cpp
-index a836099..6b9c4b9 100644
+index a836099..cc0bcef 100644
 --- a/spirv/spirv_builder.cpp
 +++ b/spirv/spirv_builder.cpp
 @@ -822,8 +822,15 @@ void SpirvBuilder::emitDclLds(const ir::Op& op) {
@@ -19,7 +19,48 @@ index a836099..6b9c4b9 100644
  
    addEntryPointId(varId);
  }
-@@ -4050,9 +4057,14 @@ void SpirvBuilder::emitSetCsWorkgroupSize(const ir::Op& op) {
+@@ -2487,7 +2494,14 @@ void SpirvBuilder::emitAtomic(const ir::Op& op, const ir::Type& type, uint32_t i
+   auto [opCode, argCount] = [&] {
+     switch (atomicOp) {
+       case ir::AtomicOp::eLoad:             return std::make_pair(spv::OpAtomicLoad, 0u);
+-      case ir::AtomicOp::eStore:            return std::make_pair(spv::OpAtomicStore, 1u);
++      // Tea/MoltenVK: emit atomic stores as OpAtomicExchange with a discarded
++      // result. SPIRV-Cross (as bundled in MoltenVK 1.4.2) translates image /
++      // texel-buffer atomics by appending a `.x` component extraction to the
++      // MSL call, which is valid for value-returning atomics but produces
++      // `atomic_store(...).x` (member access on void) for OpAtomicStore,
++      // failing MSL compilation. Exchange-with-ignored-result is semantically
++      // identical to a store.
++      case ir::AtomicOp::eStore:            return std::make_pair(spv::OpAtomicExchange, 1u);
+       case ir::AtomicOp::eExchange:         return std::make_pair(spv::OpAtomicExchange, 1u);
+       case ir::AtomicOp::eCompareExchange:  return std::make_pair(spv::OpAtomicCompareExchange, 2u);
+       case ir::AtomicOp::eAdd:              return std::make_pair(spv::OpAtomicIAdd, 1u);
+@@ -2539,18 +2553,18 @@ void SpirvBuilder::emitAtomic(const ir::Op& op, const ir::Type& type, uint32_t i
+   /* Emit atomic instruction */
+   uint32_t operandCount = 4u + argCount;
+ 
+-  if (atomicOp != ir::AtomicOp::eStore)
+-    operandCount += 2u;  /* result type and id */
++  /* Tea/MoltenVK: stores are emitted as OpAtomicExchange (see above), which
++   * always carries a result type and id; use a fresh id for the discarded
++   * result since the store op's own def is void. */
++  operandCount += 2u;  /* result type and id */
+ 
+   if (atomicOp == ir::AtomicOp::eCompareExchange)
+     operandCount += 1u;  /* unequal semantics */
+ 
+   m_code.push_back(makeOpcodeToken(opCode, operandCount));
+ 
+-  if (atomicOp != ir::AtomicOp::eStore) {
+-    m_code.push_back(getIdForType(type));
+-    m_code.push_back(id);
+-  }
++  m_code.push_back(getIdForType(type));
++  m_code.push_back(atomicOp != ir::AtomicOp::eStore ? id : allocId());
+ 
+   m_code.push_back(ptrId);
+   m_code.push_back(makeConstU32(scope));
+@@ -4050,9 +4064,14 @@ void SpirvBuilder::emitSetCsWorkgroupSize(const ir::Op& op) {
    auto y = uint32_t(op.getOperand(2u));
    auto z = uint32_t(op.getOperand(3u));
  
