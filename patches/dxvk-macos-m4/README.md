@@ -173,3 +173,26 @@ HLSL→(wine d3dcompiler_47)→DXBC→(dxbc-spirv 原生 dxbc_compiler)→SPIR-V
 结论：社区 nastys/MoltenVK「CombineLUTs 只写第 0 层」bug（2022 era）在 MoltenVK 1.4.2
 已不存在于任何我能构造的等价路径——幸福工厂黑屏另有机制，等 ShowFlag.ColorGrading=0
 在真游戏里的裁决（已在菜单待命）。偶发崩溃错误码勘正：887A0007=DXGI DEVICE_RESET。
+
+### 深夜排查续（21:30-22:20，黑屏仍未破，但证据链大幅收窄）
+
+新增排除（可靠）：
+- 游戏内 `ShowFlag.ColorGrading=0` 仍黑 → **LUT/调色在游戏内正式无罪**（与无屏复现一致，此章合上）
+- **Metal API 验证层全绿**（直启注入 MTL_DEBUG_LAYER=1，919 条 encoding 验证零错误）
+  → 不是 API 用法 bug，是**值级 bug**（某处数据内容为零/错，而非调用非法）
+- LDS 显式清零注入补丁（emitDclLds 记录 + 入口 OpStore 零 + 工作组屏障，替代上游被
+  SPIRV-Cross 破坏的变量初始化器语义）→ 部署后仍黑，但此补丁语义上应保留（上游有意清零）
+- 3D RTV 侦察日志：32³ LUT 每次启动只渲一次；每帧两张 64 深体积（半透明光照体积）正常绑定
+
+**重大方法勘误**：经 `steam://rungameid` 启动时游戏环境继承自常驻 Steam 进程，
+**rungameid 前 export 的环境变量根本不进游戏**——此前 fast-math/RESUME_LOST_DEVICE 等
+「环境变量类实验」全部无效，需经 sf-run.sh 直启重测（MTL_DEBUG_LAYER 已用直启实测生效）。
+
+工具修正：wine 只认真实虚拟键码，type.swift 已改 ANSI 键码表（unicode 注入 wine 收不到）。
+游戏内控制台是否可用仍未定（HighResShot/DumpGPU 均无文件产物；前次「打通」为 shell 误判）。
+
+### 当前活跃假说（按优先级）
+1. **某个「值级」数据源为零**：候选=光照函数图集、天光 cubemap、太阳透射 LUT（sky atmosphere
+   的 2D LUT 组）、光源常量缓冲——需逐一验证内容而非绑定
+2. dxbc-spirv（2026 新编译器）对某类着色器模式的静默错译（描述符错位/常量缓冲偏移错）
+3. 验证键盘可达性（方向键在菜单里能否移动选择）→ 控制台 → `viewmode unlit` 现场二分
