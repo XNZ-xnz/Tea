@@ -11,6 +11,9 @@ exe: Against the Storm.exe
 dll_overrides: "d3d11,dxgi,d3d10core=n,b"
 notes_zh: >-
   自建 DXVK 3.0.2（patches/dxvk-macos-m4/）三件套放游戏目录即可，勿放 prefix system32（会污染同 prefix 其他游戏）。
-  实测：Direct3D 11.0 FL 11_0、Renderer 报 Apple M4、主菜单可鼠标交互。
-  已知问题：帧率仅 5-6 FPS（主线程阻塞型，非画质设置、非着色器编译），待优化后才够 Playable 徽章。
-  待办：BackendManager 需新增 dxvk 后端枚举，把「DLL 拷游戏目录 + override」固化成一等公民装配路径。
+  实测：Direct3D 11.0 FL 11_0、Renderer 报 Apple M4、主菜单可鼠标交互、22.6 FPS。
+  **首次运行必做**：游戏内 OPTIONS→VIDEO 把 Graphics Quality 从 High 降到 Low（云端存档会把用户
+  Windows 主机的 High 同步过来）——draw call 11360→5633，FPS 4.8→22.6。分辨率不用动，原生最快。
+  禁用：MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS（实测钉死在 0.5 FPS 且污染 DXVK 着色器缓存）。
+  待办：BackendManager 需新增 dxvk 后端枚举，把「DLL 拷游戏目录 + override」固化成一等公民装配路径；
+  P4 首次运行向导应对「云端画质档过高」给出提示（这条对所有 Steam Cloud 游戏通用）。

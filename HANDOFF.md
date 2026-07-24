@@ -115,7 +115,9 @@
 - 组合：`wine-devel-11.13+winemetal+mvk142` 底座 + 游戏目录自建 DXVK + `WINEDLLOVERRIDES="d3d11,dxgi,d3d10core=n,b"`，经 Steam `rungameid` 启动。
 - 实证：Unity 2021.3.45f2 / `Direct3D 11.0 [level 11.0]` / `Renderer: Apple M4` / DXVK HUD `3.0.2 + MoltenVK 1.4.2`；
   CGEvent 模拟点击可关弹窗、主菜单 PLAY/OPTIONS/QUIT 完整渲染。
-- **剩余问题：5-6 FPS**（主线程阻塞型，非 CPU 打满、非画质设置、非着色器编译）。详见 PROGRESS 里程碑段。
+- **帧率已解决到 22.6 FPS**：真凶是云端同步来的 `High` 画质档，游戏内 OPTIONS→VIDEO 降到 Low 即可
+  （draw call 11360→5633，FPS 4.8→22.6）。**分辨率不是杠杆**（像素砍 57% 帧率零变化），原生 2560×1664 反而最快。
+  `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1` 判定有害且会污染 DXVK 着色器缓存，勿用。详见 PROGRESS 帧率攻坚段。
 - ⚠️ **本段旧结论（「FL 11_1」「A* 寻路跑过」「游戏干净自退」）已作废**——那是读到了 Steam Cloud 恢复的
   2024 年 Windows 主机 Player.log。AoTS 的 Player.log **会被 Steam Cloud 同步覆盖**，读日志前必须先验产物归属
   （mtime / md5 / 日志内 GPU 与系统字段）。
