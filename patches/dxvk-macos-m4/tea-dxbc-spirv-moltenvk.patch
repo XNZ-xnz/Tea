@@ -78,3 +78,18 @@ index a836099..cc0bcef 100644
  }
  
  
+diff --git a/spirv/spirv_builder.h b/spirv/spirv_builder.h
+index e216bf6..9ca1fbb 100644
+--- a/spirv/spirv_builder.h
++++ b/spirv/spirv_builder.h
+@@ -81,6 +81,10 @@ private:
+ 
+   ir::ShaderStage m_stage = ir::ShaderStage();
+ 
++  /* Tea/MoltenVK: LDS 显式清零注入（替代被 SPIRV-Cross 破坏的变量初始化器） */
++  std::vector<std::pair<uint32_t, uint32_t>> m_teaLdsInits;
++  bool m_teaPendingLdsInit = false;
++
+   Options m_options;
+ 
+   std::unordered_map<ir::Type, uint32_t> m_types;

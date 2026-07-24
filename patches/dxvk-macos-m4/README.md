@@ -252,3 +252,15 @@ TEA_DUMP_RT/TEA_DUMP_PRESENT 环境变量门控）：
 
 **给上游报 bug 的最小复现已备齐**：patches 目录的 fs.3f67*.spv/.dxbc + 证据图，
 配合 vk-layer-test 框架可扩展成独立 Vulkan 复现（push 常量索引采样器堆 → 采样返回零）。
+
+## 工作区尝试记录（均无效，根因确为 MoltenVK 深层 codegen）
+- `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=1`（always）：早期会话曾致挂死
+- `MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS=2`（按需）：仍黑，无变化
+- **强制采样器堆访问 NonUniform**（dxbc-spirv getImageDescriptorPointer + emitDescriptorLoad
+  给动态索引/指针/load 结果打 DecorationNonUniform）：仍黑。证明 MoltenVK 的 bug 不在
+  NonUniform 分支选择，而在 argument-buffer 内 sampler 描述符动态索引的底层 MSL 生成/绑定。已回退。
+- 曝光全家桶（AutoExposure=0+手动、+8EV、Basic、UsePreExposure=0）：仍黑
+
+**结论固化**：Tea 侧无可行工作区。真修必须落到 MoltenVK 源码（argument-buffer sampler heap
+动态索引的 MSL codegen），或等其上游修复。这是 Tea/DXVK 之外的硬边界。
+最小复现材料（fs.3f67*.spv/.dxbc + 证据图 + vk-layer-test 框架）已备齐待报 KhronosGroup/MoltenVK。
