@@ -1,0 +1,16 @@
+# Against the Storm — Tea 首款「用户能点自己游戏界面」的游戏（2026-07-24 实测通关到可交互主菜单）
+# appid 核实：Steam storefront API
+appid: "1336490"
+slug: against-the-storm
+name_zh: 风暴之城
+engine: Unity 2021.3.45f2
+api: d3d11
+backend: wined3d          # 占位：真实路径是游戏目录自建 DXVK（backend 枚举尚无 dxvk 项，见 notes）
+wine: wine-devel-11.13+winemetal+mvk142   # MoltenVK 1.4.2 是自建 DXVK 的硬前提
+exe: Against the Storm.exe
+dll_overrides: "d3d11,dxgi,d3d10core=n,b"
+notes_zh: >-
+  自建 DXVK 3.0.2（patches/dxvk-macos-m4/）三件套放游戏目录即可，勿放 prefix system32（会污染同 prefix 其他游戏）。
+  实测：Direct3D 11.0 FL 11_0、Renderer 报 Apple M4、主菜单可鼠标交互。
+  已知问题：帧率仅 5-6 FPS（主线程阻塞型，非画质设置、非着色器编译），待优化后才够 Playable 徽章。
+  待办：BackendManager 需新增 dxvk 后端枚举，把「DLL 拷游戏目录 + override」固化成一等公民装配路径。

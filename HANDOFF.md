@@ -12,7 +12,7 @@
 | **Steam 客户端** | ✅ 完整可用（CEF 黑屏已根治，登录态 bombpee/XNZ 在） | 无 |
 | **P5R**（1687950，Denuvo） | 图形栈验证可用；卡 Denuvo 激活配额 88500006，**冷却中** | 确认 >24h 零启动后用锁定组合一次通关（见 §3.1） |
 | **幸福工厂**（526870，UE5.3） | 自建 DXVK 下渲染最深；`-nosound` 绕过音频崩点后撞交换链 887A0004 | §3.2 的组合矩阵还剩 2-3 发 |
-| **Against the Storm**（1336490，Unity DX11） | **最接近通关**：自建 DXVK 建成 D3D11 FL11_1、引擎+菜单 UI+游戏内控制器都跑了，但游戏干净自退 | 找出自退原因（§3.3），极可能一步之遥 |
+| **Against the Storm**（1336490，Unity DX11） | 🏆 **已通关到可交互主菜单**（2026-07-24 15:30，截图+HUD+日志三重实证） | 只剩 5-6 FPS 帧率问题，见 PROGRESS「AoTS 里程碑」段 |
 | **BioShock Infinite**（8870，32 位） | 判死封存：wow64 早期启动死角，与 DXVK 无关（wined3d baseline 同卡点） | 不投入；等 wow64 演进 |
 | **自建 DXVK**（核心资产） | ✅ 上游 DXVK 3.0.2 + 5 处补丁，64/32 位都已编译，**已被 AoTS 实证可用** | 复用到一切 DX11 游戏 |
 
@@ -61,8 +61,14 @@
   纯黑 PNG 体积极小（~50-95KB@1280px），有内容 >300KB，可作自动判定指标。
 - 监控纪律（产品负责人硬要求）：**每个实验挂三重指标监视**（游戏日志尺寸 + 截图字节 + 进程数），
   600 秒无变化必须报警转下一步；**每轮抓全部 wine 窗口**防漏小对话框（两次教训）。
-- 杀 wine 必须用 `pkill -9 -f "wine-preloader|wine64-preloader"`——services/plugplay/svchost/rpcss/explorer
-  服务树不匹配常规模式，残留会让下一个 wine 全家僵死（惨痛教训）。
+- 杀 wine：`pkill -9 -f "wine-preloader|wine64-preloader"` 只对 gptk/CX 系底座有效。
+  **wine-devel-11.13 系底座没有 preloader，这条口诀杀不掉任何游戏进程**（2026-07-24 实测踩坑，
+  导致以为清场干净、实则游戏还活着，第二轮被 Steam 挡回 "Game already running"，环境变量全部没生效）。
+  **通用清场序列**：`pkill -9 -f "<游戏exe名>"` → `pkill -9 -f "steam.exe|steamwebhelper"` →
+  `pkill -9 -f "wineserver|winedevice"`，最后 `pgrep -fl "wine|steam"` 必须为空。
+- **截屏陷阱**：`screencapture -l <windowID>` 抓被遮挡的 wine 窗口返回**陈旧缓存表面**，连抓多次字节数
+  完全一致，极易误判成「渲染冻结」。判定呈现是否活着：先 activate 窗口到前台再连抓两张比字节数，
+  或直接开 `DXVK_HUD=fps` 看数字。
 
 ## 二、当前部署状态（精确到文件）
 
@@ -105,18 +111,14 @@
   + 直启（SteamAppId=526870）。若过了，逐步解锁音频（去掉 -nosound 换 wine 音频参数排查 null-deref 根源）。
 - 音频崩溃上下文：崩前日志停在 audio submix/MasterReverbSubmix/audio stream 初始化（PROGRESS 有全文）。
 
-### 3.3 Against the Storm（一步之遥，建议首攻）
-- **已实证**：自建 DXVK 建成 `Direct3D 11.0 [level 11.1]`（Unity 日志白纸黑字，显卡名报 RTX 4070 是 DXVK
-  的 NVIDIA 伪装 profile，实际 M4）；引擎服务全启动；经 Steam 启动后走到 MetaController→MainController→
-  GameController→WorldController、菜单 UI 动画（DOTween）、甚至游戏内 A* 寻路——**菜单+背景世界模拟真实跑过**。
-- **问题**：游戏随后总是**干净自退**（`[Quit] Service On Destroy...` 全套，非崩溃）。直启退更快
-  （疑 Steam 所有权），经 Steam 启动跑得更久但仍退。
-- **下一步线索**（按序试）：
-  1. Player.log 逐行对时间轴，找 [Quit] 的触发者（Quit 前最后的非加载日志）。
-  2. 疑点：无声音设备/无焦点窗口/分辨率协商失败导致游戏自退——试 `-screen-fullscreen 0 -screen-width 1280
-     -screen-height 800`（Unity 标准参数）；试虚拟桌面（注册表 HKCU\Software\Wine\Explorer Desktop=Default +
-     Desktops\Default=1920x1080——我试过一次但没来得及验证就交接了，**当前已还原**）。
-  3. Steam 客户端保持前台在线（AoTS 是 Steamworks 游戏但无 Denuvo，随便试不烧任何东西）。
+### 3.3 Against the Storm ✅ 已通关到可交互主菜单（2026-07-24 15:30）
+- 组合：`wine-devel-11.13+winemetal+mvk142` 底座 + 游戏目录自建 DXVK + `WINEDLLOVERRIDES="d3d11,dxgi,d3d10core=n,b"`，经 Steam `rungameid` 启动。
+- 实证：Unity 2021.3.45f2 / `Direct3D 11.0 [level 11.0]` / `Renderer: Apple M4` / DXVK HUD `3.0.2 + MoltenVK 1.4.2`；
+  CGEvent 模拟点击可关弹窗、主菜单 PLAY/OPTIONS/QUIT 完整渲染。
+- **剩余问题：5-6 FPS**（主线程阻塞型，非 CPU 打满、非画质设置、非着色器编译）。详见 PROGRESS 里程碑段。
+- ⚠️ **本段旧结论（「FL 11_1」「A* 寻路跑过」「游戏干净自退」）已作废**——那是读到了 Steam Cloud 恢复的
+  2024 年 Windows 主机 Player.log。AoTS 的 Player.log **会被 Steam Cloud 同步覆盖**，读日志前必须先验产物归属
+  （mtime / md5 / 日志内 GPU 与系统字段）。
 - Player.log 路径：`prefix/drive_c/users/xnz/AppData/LocalLow/Eremite Games/Against the Storm/Player.log`。
 
 ### 3.4 BioShock Infinite（封存）

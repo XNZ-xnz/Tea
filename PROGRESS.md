@@ -4,13 +4,51 @@
 
 ## 当前状态
 
-- **阶段**：✅ P0-P3 完成；**降级完成 + 环境重建完成（macOS 26.5.2 / 25F84，Rosetta/Xcode26/gh 全就位）**；🏆 **CEF 黑屏彻底根治，Steam 完整 UI 正常渲染（27beta 噩梦终结）**；⚠️ P5R 游戏进程崩于固定 page fault，端到端最后一环受阻（2026-07-24 凌晨）
+- **阶段**：✅ P0-P3 完成；**降级完成 + 环境重建完成（macOS 26.5.2 / 25F84，Rosetta/Xcode26/gh 全就位）**；🏆 **CEF 黑屏彻底根治，Steam 完整 UI 正常渲染（27beta 噩梦终结）**；🏆 **Against the Storm 进入可交互主菜单（2026-07-24 下午，自建 DXVK，首款「能点自己界面」的游戏）**，唯一剩余问题为 5-6 FPS 帧率
+- **首款端到端可交互游戏 = Against the Storm（1336490）**：底座 `wine-devel-11.13+winemetal+mvk142` + 游戏目录自建 DXVK + `WINEDLLOVERRIDES="d3d11,dxgi,d3d10core=n,b"`，经 Steam 启动。详见下方里程碑段（含两处对上一会话结论的重大纠错）
 - **CEF 黑屏根治（本轮头号成果）**：黑屏与 macOS 版本无关（26/27 双系统同现象），根因是 Steam 2026 客户端 CEF 126 在 wine 上跨进程建交换链 + winsock TLS 双故障。**steamwebhelper 包装器**（`--disable-gpu --single-process`，见 tools/steamwebhelper-wrapper/）一举根治：**Steam 登录态在、商店/库/详情页全部正常渲染（Tears of Metal 商店页、Now Available 弹窗、库均截图实证）**。配套 Steam.cfg `BootStrapperInhibitAll=enable` 防 bootstrapper 还原包装器。
 - **Steam 底座矩阵（加包装器后重测）**：✅ 能带 CEF UI = wine-devel-11.13+winemetal 微变体、winecx-xom-5.4.2；❌ webhelper not responding = wine-devel+dxmt-v0.80 完整变体、gptk-wine-3.0-2（即使包装器强制软渲染也救不回，DXMT/gptk 的 d3d 注入把 webhelper 拖垮）
 - **P5R blocker（新，未解）**：`tea steam game 1687950` 启动链全通（HasRunKey 跳过 32 位 redist 后 install script 秒过 → P5R.exe 进程起 → 1462×833 窗口上屏），但**窗口纯黑、进程稳定挂起后崩** `Unhandled page fault on read 0x8FF at 0x1401D7EB9`（游戏自身代码固定地址，多次复现）。跨 winecx(DXMT builtin)/wine-devel+winemetal(wined3d 回落)/wine-devel+dxmt 三后端一致；`ROSETTA_ADVERTISE_AVX=1` 实测在 winecx 内确实点亮 AVX（AVX=1 OSXSAVE=1）但**崩溃地址不变**——排除「纯缺 AVX」。崩在图形提交之前，疑似 Denuvo/早期初始化。详见下方「P5R 启动攻坚」。
 - **✅ P5R blocker 定性完毕（2026-07-24 凌晨续）**：真凶 = **Denuvo 防篡改激活配额**（弹窗实证 support.codefusion.technology 错误码 88500006）。Denuvo 每天限 5 次激活，**每换一个 wine 底座 = 新硬件指纹 = 烧一次激活**——排查夜连切 6+ 种底座直接烧穿配额。winecx 下的固定 page fault 0x1D7EB9 同源（老 CX 底子上 Denuvo 崩溃式失败，新 wine 下则走到人话弹窗）。
 - **🎯 DXVK 图形路线已实证全通**：DXVK-macOS 1.10.3 repack（native PE 无 builtin 标记，覆盖机制有效！）d3d11+d3d10core 放游戏目录 + `WINEDLLOVERRIDES="d3d11,d3d10core=n,b"` + wine 自带 dxgi/MoltenVK → **日志实证 `Using feature level D3D_FEATURE_LEVEL_11_0`、全屏交换链 3×1470×956、CAMetalLayer 挂 WineMetalView**。游戏一路跑到 Denuvo 校验，图形栈零障碍。SHA256 `acd1520ad105d8ef124a09c8e11a259a5dc8bdc565ad18e0e52693f9807b2477`（Gcenx/DXVK-macOS v1.10.3-20230507-repack），待钉入 manifest。
 - **下一步（明确路径）**：等 Denuvo 24h 配额重置 → **锁死组合不再切换**：Steam=wine-devel-11.13+winemetal（CEF 包装器）、P5R=同底座+游戏目录 DXVK+`ROSETTA_ADVERTISE_AVX=1` → 一次激活直达标题画面 = P3 端到端达成。此后该 prefix 永不换底座（Denuvo 指纹稳定）。产品层教训：**per-app runtime 切换对 Denuvo 游戏是毒药，Tea 的 recipe 一旦定型底座就要钉死**——这条要进 compat 报告字段与 P4 设计。
+
+## 🏆 里程碑：Against the Storm 进入可交互主菜单（2026-07-24 15:00-15:30）
+
+**Tea 第一款「用户能点自己游戏界面」的游戏**，全程自建 DXVK，截图 + DXVK HUD + 双日志三重实证。
+
+**实证链**（全部来自我们自己跑出的日志，不是云端恢复的）：
+- Unity 引擎 2021.3.45f2 起，`Direct3D 11.0 [level 11.0]` / `Renderer: Apple M4 (ID=0x1a050209)` / `Vendor: Unknown (ID=106b)` / VRAM 16352 MB
+- DXVK HUD 屏显：`DXVK 3.0.2 / Apple M4 / Driver: MoltenVK / Version: 1.4.2`
+- 全部服务加载完成 → 释放加载屏 → `[POP] Show UpdatesPopup` → 菜单地形 1090 棵树
+- **CGEvent 模拟点击生效**：关掉 What's New 弹窗 → PLAY / OPTIONS / QUIT 三卡主菜单完整渲染
+- DXVK 日志异常干净：零 error，仅 3 条无害 warn；交换链 `B8G8R8A8_UNORM / FIFO / 1470x956 / 3 images`
+
+**⚠️ 重大纠错：上一会话 AoTS「引擎+菜单+A* 寻路都跑过」的结论是误读**。
+Steam Cloud **会同步 AoTS 的 Player.log**（cloud_log.txt 实证：每次 Steam 启动都 `Need to download file
+Eremite Games/Against the Storm/Player.log`）。上一会话读到的是产品负责人 2024 年真实 Windows 主机的
+日志（`System: Windows 11 (10.0.22631)` / `NVIDIA GeForce RTX 4070` / 驱动 32.0.15.5585 / VRAM 12012MB /
+引擎 2021.3.27f1 / 游戏 1.3.4R / 110 万帧真实游玩），不是 wine 跑出来的。所谓「游戏干净自退
+（`[Quit] Service On Destroy`）」也是那份日志里主机上正常退出的尾巴。
+**方法论纪律（新增硬性要求）**：读游戏日志前必须先确认是本次运行产物——查 mtime、查 md5 与基线是否不同、
+查日志内 GPU/系统/版本字段是否与 Mac 环境自洽。云端存档游戏尤其危险。
+
+**⚠️ 第二个纠错：交接文档的杀进程口诀在 wine-devel-11.13 底座上无效**。
+`pkill -9 -f "wine-preloader|wine64-preloader"` **杀不掉游戏进程**（该底座无 preloader，进程名是 Windows
+exe 路径）。实测后果：以为清场干净其实游戏还活着 6 分钟，第二轮启动被 Steam 挡回
+`An error occurred while launching this game: Game already running`，环境变量全部没生效，白跑一轮。
+**正确清场**：`pkill -9 -f "<游戏exe名>"` + `pkill -9 -f "steam.exe|steamwebhelper"` + `pkill -9 -f "wineserver|winedevice"`，
+之后 `pgrep -fl "wine|steam"` 必须为空才算干净。
+
+**另一个实测坑**：`screencapture -l <windowID>` 抓被遮挡的 wine 窗口会返回**陈旧的缓存表面**——
+连抓三次字节数完全一致（2752398）曾被误判为「渲染冻结」。**判定呈现是否活着必须先把窗口激活到前台**
+（activate 后连抓两张字节数才会变），或直接看 DXVK HUD 的 FPS 数字。
+
+**当前唯一剩余问题：帧率 5-6 FPS**（预热 60 秒后 5.0 → 6.3，非着色器编译问题）。
+- 游戏进程 12 秒只吃 7.8 秒 CPU ≈ 65% 单核（M4 十核），**主线程在阻塞等待而非算力打满**
+- Unity 画质注册表已是最低档（`UnityGraphicsQuality=0`）；分辨率 1470×956；`Screenmanager Fullscreen mode=1`（独占全屏）
+- 待试：`dxgi.syncInterval=0`（判定是否 present-bound）、窗口化 + 降分辨率（判定是否填充率瓶颈）、
+  MoltenVK 参数调优。**这是 Verified/Playable 徽章分界线，也是 Tea 从「能进界面」到「能玩」的关键课题**
 
 ## b 路验证：BioShock Infinite（2026-07-24 下午）— 32 位游戏死角，与 DXVK 无关
 
