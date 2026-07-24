@@ -223,3 +223,32 @@ TEA_DUMP_RT/TEA_DUMP_PRESENT 环境变量门控）：
    （非独立版）dump MSL，对比 tier-2 argument buffer 下的描述符索引是否错位
 2. DXVK 侧：把该类 runtime-sized descriptor array 降级为固定上限数组（避开 MoltenVK bindless 路径）
 3. 或升级/自编带修复的 MoltenVK；关注 SPIRV-Cross argument-buffer 描述符索引相关提交
+
+## 🔬 根因机制（SPIR-V 级，已到底）
+
+反汇编凶手 PS（spirv-dis）锁定完整机制链：
+```
+%170 = OpInBoundsAccessChain %push_data %uint_0        // push 常量 offset 32 取采样器索引 s0
+%174 = OpLoad %ushort %170
+%175 = OpUConvert %uint %174
+%178 = OpAccessChain %sampler_heap %175                // 动态索引全局采样器堆[s0]
+%176 = OpLoad %102 %178
+%181 = OpSampledImage %167 %176                        // 用该采样器采 SceneColor/LUT
+%182 = OpImageSampleImplicitLod ...
+```
+- `sampler_heap` = DXVK 3.x 的**全局采样器堆**（`DxvkSamplerPool::MaxSamplerCount=2048`，
+  DescriptorSet 0 Binding 0，`OpTypeRuntimeArray`）——DXVK 3.x 架构基石，非可选特性
+- 采样器索引经 **push 常量**（offset 32-38，s0-s3）动态传入，shader 运行期索引堆
+- **MoltenVK 错译这种「push 常量驱动的动态采样器堆索引」（Metal argument buffer 路径）**：
+  tonemapper 取到错误采样器 → 纹理采样返回零 → 输出全黑
+- **为何只有 tonemapper 中招**：绝大多数着色器用编译期常量采样器索引（正常）；
+  只有 tonemapper 这类做动态采样器索引的着色器踩中 MoltenVK 的这个 bug——完美解释
+  「几何/光照全对、只有最后一步黑」
+
+**这是 MoltenVK 的 codegen bug，不是 DXVK/Tea 的 bug。** 真正修复三选一（均属大工程/跨项目）：
+1. 修 MoltenVK：动态索引 argument-buffer 内采样器描述符的 MSL 生成（上游 SPIRV-Cross/MVK）
+2. 改 DXVK 3.x：放弃全局采样器堆、回退传统 per-binding 采样器（等于回退其核心架构，不现实）
+3. 等 MoltenVK 上游修复后换版本
+
+**给上游报 bug 的最小复现已备齐**：patches 目录的 fs.3f67*.spv/.dxbc + 证据图，
+配合 vk-layer-test 框架可扩展成独立 Vulkan 复现（push 常量索引采样器堆 → 采样返回零）。
