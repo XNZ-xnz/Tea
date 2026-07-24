@@ -28,4 +28,12 @@ notes_zh: >-
   → 崩点移位（越过 AMD 路径，VkInstance 建成又销毁），转为"Exception frame not in stack limits"(32位栈异常)。
   **多堵墙串联**（已清 wineserver污染→Bink视频→overlay→atiadlxx，现剩 32位栈异常）——与 Satisfactory
   同型，与社区"需 CX24 多年32位修复"结论一致。装了 DirectX Jun2010 redist(XAudio2_7/X3DAudio/D3DCompiler_43)。
-  下一步：winedbg 抓栈异常源，或等 CX24 等价免费底座。已到"引擎运行+越过AMD路径"深度。
+  ★三个免费 wine 全测遍(2026-07-25)，确认硬边界★：
+  - winecx-xom-5.4.2：无 i386 树=纯64位wine，跑不了32位游戏(syswow64/cmd都打不开)
+  - gptk-wine-3.0-2(CX22 32on64)：引擎前就退(D3DMetal疑64位专用)
+  - wine-devel-11.13(Wine11 新wow64)：最深——窗口+设备FL11_0+交换链+引擎运行+越过AMD路径，
+    清4墙(wineserver/Bink/overlay/atiadlxx)后死于32位栈异常(Exception frame not in stack limits)
+  **结论：Tea 现有免费 wine 无一能跑通此32位游戏到可玩。** 需 CrossOver 专有 CX24 wine
+  (多年 32位-on-AppleSilicon 异常处理补丁 + 32位D3DMetal/wined3d)，或未来免费 CX系32on64 带同款补丁。
+  与 Satisfactory 的 MoltenVK bug 同型：外部依赖硬边界，非配置可解。
+  下一步(需外部条件)：获取 CX24 等价免费底座；或 winedbg 逐个补 wine 侧32位异常(Satisfactory级多小时)。
