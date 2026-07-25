@@ -144,6 +144,25 @@ env/loader 行为——信息密度最高,待产品负责人点头)②社区问�
 **同时可用资产**:fw4-mix(CX22底座+framework 4.0b1)冒烟级 D3DMetal 4 已在手,简单 DX11/12
 游戏可先用;现有游戏栈全部不受影响。
 
+### 🔑 CrossOver ground truth 破案夜(2026-07-26 凌晨,巨大进展+诚实断点)
+
+**用户装 CrossOver 26.3 试用(=crossover-sources-26.3.0 同版)——一小时内的发现链**:
+1. **D3DMetal 4 在 CX-real wine 上完整工作**(反向杂交:CX wineloader + GPTK4 redist 胶水
+   = D3D11_OK,报 Apple M5 Max 真身 VENDOR=0x106b,不再伪装 AMD)——A3 目标物在参照系成立。
+2. 十字换件矩阵全跑:胶水互换/加载器互换/PE 树互换/unix .so 互换/freetype+gnutls 全功能重建
+   ——树内容与符号全部排除(导出 diff 零差异)。
+3. **🔑 签名是真变量**:CX wineloader = com.codeweavers.CrossOver.wineloader 正式签名 +
+   entitlements(allow-unsigned-executable-memory / disable-executable-page-protection /
+   disable-library-validation)。我们的 x86_64 产物全程无签名——胶水的运行时打表被内存保护
+   静默拦截。**ad-hoc 签名后行为质变:秒崩→打表成功**。
+4. 剩余 boss:签名后 hang(0% CPU)。cx26f 签名版挂在 winemac 事件泵后;
+   MACOSX_DEPLOYMENT_TARGET=10.14 重建版(Apple formula 最后一行作业)挂点反而更早
+   (dyld/start 阶段)。两发同指纹,按熔断纪律收束。
+**新会话 fresh-eyes 计划**(台账已记):symbolized 主线程完整栈 → ktrace/dtruss 系统调用级
+对比(我们的 vs CX-real 同 smoke)→ CX 启动时的完整 env diff(CX app 启动游戏时注入什么)
+→ x86_64 lldb。**在手资产**:CX-real 可作 D3DMetal 4 完整宿主(参照+应急),fw4-mix 冒烟级,
+配方五要素已固化 tools/teabase/README(源码 26.3+freetype/gnutls+DT10.14+entitlements 签名+胶水部署)。
+
 ### 副线战果（2026-07-25 晚，编译等待时段）
 
 - **P5R 一发入魂→定性转向**：详见 recipe 1687950。激活大概率成功（渲染器全通+交换链+
