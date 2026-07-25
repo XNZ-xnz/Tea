@@ -120,6 +120,36 @@ Mode,Info.plist 实证 4.0b1)。**D3DMetal 4 当天在现有底座解锁,无需�
 闭环);wine 主执行文件补 rpath。哨兵全程接管(run/watch/logs 签名打标/attempt 记账)。
 tea-base 自建继续留作 P5R(CrossOver 专有补丁)与 Steam 单底座的解药;cx25 configure 失败待查。
 
+### 🎯 A3 决定性突破:我们的树是对的,变量锁死在「加载器地址空间布局」(2026-07-26 凌晨)
+
+**产品负责人装 CrossOver 26.3 试用 + 发现 Gatekeeper 弹窗(截图)——两件事各解一层。**
+
+**① Gatekeeper/quarantine = hang 的真凶**:GPTK4 胶水从 dmg 拷来带 `com.apple.quarantine`
+（标志 0083=待评估;CX 自己的是 00c3=已核准),wine 进程内 dlopen 触发同步弹窗 → 0% CPU 挂死。
+`xattr -dr com.apple.quarantine <runtime>` 清除后 hang 消失。**组装流程必加此步。**
+
+**② 决定性实验:CX 原位加载器 + 我们构建的整棵树 = D3D11_OK(Apple M5 Max 真身);
+gptk-wine 加载器(Tea 目录/无签名)+ 我们的树 = D3D11_OK。**
+→ **我们自建的 wine 树(ntdll/win32u/winemac/PE/胶水)完全正确,唯一缺陷在 `bin/wine` 加载器二进制。**
+
+**加载器四态矩阵(全部实测)**:
+| 加载器 | 布局 | 结果 |
+|---|---|---|
+| 我们 build/loader/wine 原件 | NO_PIE + image_base 0x200000000 + WINE_RESERVE/WINE_TOP_DOWN 段 | 路径解析走 build 树,改符号链接后仍 NULL |
+| 我们 install 产物 | **PIE + 4GB __PAGEZERO,特殊段全丢**(make install 重链时丢掉 WINELOADER_LDFLAGS) | NULL 崩 |
+| gptk-wine wine64(CX22 代) | 小 pagezero(__TEXT@0x1000)+ preloader + 内嵌 info_plist | ✅ 工作 |
+| CX 26.3 wineloader | PIE + 4GB pagezero,与我们 install 产物同布局 | ✅ 仅在 /Applications 原位;复制到 Tea(保 xattr+签名有效)即失败 |
+
+崩溃地址 `0x0020019008070C10` 紧邻 image_base `0x200000000` → **D3DMetal 胶水按特定地址空间
+布局读数据**,与新式 no_huge/zerofill 布局不匹配。排除项:签名(gptk 无签名却工作)、
+entitlements、quarantine、DYLD_FALLBACK、位置(gptk 在 Tea 目录工作)、树内容、freetype/gnutls、
+DT 10.14、wow64、CX_ACTIVE_GRAPHICS_BACKEND。
+
+**新会话下一步(高置信)**:①把 `WINELOADER_LDFLAGS` 补回 install 重链规则(Makefile 1517 行
+附近 `mv bin/wine bin/wineloader` 是 CX 的安装约定,我们的 install 少了这步)②试 preloader 路线
+(configure 里 `wine_use_preloader` 由 `-no_huge` 探测决定,可强制 yes 复刻 gptk 布局)
+③以 gptk 加载器 + 我们的树作为可用组合先跑 A4 游戏验证。
+
 ### 🔬 A3 深挖终局:问题精确定义(2026-07-26 凌晨,新机 M5 Max)
 
 **迁移即战力**:M5 Max/36GB/1.6TB 迁移近满分(连 cx25 构建产物与屏幕录制权限都到位),
