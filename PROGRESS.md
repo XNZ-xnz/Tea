@@ -108,6 +108,18 @@ pkill 打不中)→ 修成逐 pid 清扫 → CLEAN;`run` 拉起 tea-base-cx26 �
 台账已播种(steam/幸福工厂/P5R/teabase 现状)。
 人类一次性设置:终端「屏幕录制」权限已验证可用(doctor ✅);辅助功能已有。
 
+### 🏆 D3DMetal 4 解锁(2026-07-25 深夜,混合覆盖突破)
+
+**发现:胶水是 wine-ABI 适配层,D3DMetal.framework 才是翻译器本体,框架跨代兼容。**
+攻坚路径:cx26 全套 GPTK4 覆盖 = PE attach 后首调 D3D11CreateDevice 跳 NULL(relay 实证);
+带窗口同崩(排除 headless 假设);execute 0x00200190… = PE↔unix ABI 代际错位。
+**换思路:CX22 胶水(能跑)+ 只换 external/(D3DMetal.framework 4.0b1 + libd3dshared 4)**
+→ `gptk-wine-3.0-2+fw4` runtime:**D3D11_OK + D3D12_OK 双冒烟全绿**(AMD Compatibility
+Mode,Info.plist 实证 4.0b1)。**D3DMetal 4 当天在现有底座解锁,无需等 tea-base 编译收敛。**
+中间修复沉淀:dlopen 断言→胶水目录符号链接 D3DMetal.framework/libd3dshared(@loader_path
+闭环);wine 主执行文件补 rpath。哨兵全程接管(run/watch/logs 签名打标/attempt 记账)。
+tea-base 自建继续留作 P5R(CrossOver 专有补丁)与 Steam 单底座的解药;cx25 configure 失败待查。
+
 ### 副线战果（2026-07-25 晚，编译等待时段）
 
 - **P5R 一发入魂→定性转向**：详见 recipe 1687950。激活大概率成功（渲染器全通+交换链+
