@@ -20,3 +20,15 @@ notes_zh: >-
   启动链：Steam(wine-devel-11.13+winemetal, CEF 包装器)在线 → 经 Steam 语境启动。
   杀进程绝不点 Denuvo 弹窗按钮。上次尝试 2026-07-24 中午（88500006 配额），动手前确认 >24h 零启动。
   自建 DXVK 三件套放游戏目录（同 AoTS 部署法，勿放 system32）。
+
+  ★2026-07-25 一发入魂尝试战报(3发,当日停)★：
+  配额冷却>31h后按锁定组合启动(wine-devel-11.13+winemetal + 游戏目录DXVK 1.10.3 + ESync + AVX)。
+  **质变进展：无 Denuvo 弹窗、渲染器全量初始化(大量RasterizerState)、独占全屏交换链1470x956建成
+  ——大概率激活成功且token已缓存**(渲染器init在Denuvo解包之后)。steam_autocloud.vdf 19:34 实证
+  会话真实发生。savedata DATA01-04 = 云同步的Windows旧档(2023,云陷阱已识别)。
+  但三发一致：交换链后~10s静默退出，无弹窗无崩溃产物。deferSurfaceCreation 生效(第三发未建
+  启动期交换链)仍10s退→排除独占全屏假设。
+  ★定性(抄作业实锤)：AppleGamingWiki 社区实测 CrossOver=Perfect(DXVK+游戏内限帧)，
+  纯wine(Whisky)=Unplayable "Game doesn't even boot"——与我们现象吻合。
+  **P5R 的静默退 = CrossOver 专有 wine 补丁缺口，非配置问题。转为 Tea Base A4 验证游戏：
+  tea-base(cx25/26) + DXVK + ESync = 复现社区 Perfect 配方。**wine-devel 路线到此封存。★
