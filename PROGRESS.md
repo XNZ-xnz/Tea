@@ -150,6 +150,34 @@ DT 10.14、wow64、CX_ACTIVE_GRAPHICS_BACKEND。
 (configure 里 `wine_use_preloader` 由 `-no_huge` 探测决定,可强制 yes 复刻 gptk 布局)
 ③以 gptk 加载器 + 我们的树作为可用组合先跑 A4 游戏验证。
 
+### ⚠️ 加载器攻坚续:两项自我纠错 + preloader 路线证伪(2026-07-26 凌晨,熔断)
+
+**自我纠错 1**:「gptk 加载器 + 我们的树 = D3D11_OK」是**假阳性**。老式加载器搜索顺序是
+LIBDIR(它自己的)优先于 WINEDLLPATH → 它其实加载了 gptk 自己的 ntdll 与 D3DMetal 3
+(适配器报 "AMD Compatibility Mode" 而非 CX 那次的 "Apple M5 Max" 即铁证)。**已作废该结论。**
+**唯一站得住的正面证据仍是:CX 原位 wineloader + 我们的树 + GPTK4 胶水 = D3D11_OK(Apple M5 Max)。**
+
+**自我纠错 2**:`install_name_tool -add_rpath` 会毁掉加载器的 no_pie 与 WINE_RESERVE 段
+——**加载器绝不可做任何后处理**(rpath 只加在 ntdll.so 上)。
+
+**加载器逻辑真相**(读 loader/main.c 296 行):新式加载器**只在自身 realpath 目录找 ntdll.so**
+(或 `<parent>/dlls/ntdll/ntdll.so`)。正确部署 = 加载器放进 `lib/wine/x86_64-unix/`,
+`bin/wine` 做符号链接(realpath 解析后目录正确)。此法实测 ntdll 加载成功。
+
+**preloader 路线证伪**:`ac_cv_cflags__Wl__no_huge=no` 可让 configure 选 preloader,
+但 `wine-preloader` 在现代 SDK **根本链不出来**(`-ldylib1.o` 已废弃;改 `-lSystem` 后
+`__dyld_func_lookup` 未定义——该符号已从 macOS 移除)。这正是 wine 自动改走 no_huge 的原因。
+其副产物加载器(小 pagezero,与 gptk 段布局**逐字节同构**)+ 我们的树 → 仍 NULL 崩。
+
+**四种自建加载器布局全试(install 版/重链 no_pie+WINE_RESERVE 版/preload 小 pagezero 版/
+换目录部署版)均 NULL 崩;CX 二进制换到任何非 /Applications 位置也崩。**
+→ 变量既非布局、也非签名、也非位置单独一项,而是 CX 二进制与其原位语境的组合。已达本会话
+认知边界,按熔断纪律收束(attempt 计数 ≥3)。
+
+**新会话建议**:①x86_64 lldb 附加对比两进程在 D3D11CreateDevice 处的内存映射(vmmap diff)
+②ktrace/dtruss 系统调用级 diff ③直接问 CodeWeavers/Gcenx 构建配方 ④务实路线:A4 游戏验证改用
+gptk-wine(D3DMetal 3,已证可玩)与 fw4-mix,Tea Base 作为长线课题。
+
 ### 🔬 A3 深挖终局:问题精确定义(2026-07-26 凌晨,新机 M5 Max)
 
 **迁移即战力**:M5 Max/36GB/1.6TB 迁移近满分(连 cx25 构建产物与屏幕录制权限都到位),
