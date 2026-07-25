@@ -92,6 +92,22 @@ DXVK 8 补丁上游化；方法论纪律入 CLAUDE.md；AtS first-party 报告�
 - 系统 bison 2.3 太老，用 brew bison 3.8（构建期工具，arm64 版可用）
 - 后台 make 会被工具超时杀（Killed: 9 假象），须 nohup+disown 脱离会话
 
+### 🛡 哨兵(sentinel)建成并接入工作流（2026-07-25 深夜，一晚交付）
+
+`tools/sentinel/sentinel.py`——单文件 python3 零依赖自我监控工具,selftest **11/11 全绿**。
+六类假性人工介入全部机械化:等待型(run/watch 五态判活+耐心档,007 的 20 分钟 shader 情报写死)、
+感知型(shot 黑屏/冻结启发式+view)、污染型(logs 增量+签名打标/purge 清场口诀/doctor 体检)、
+循环型(attempt≥3 熔断/budget 超时 ESCALATE)、断点型(state 台账)、求助型(handoff/inbox 异步卡)。
+宪法八条款入 CLAUDE.md;A3/A4/P5R 任务卡已标哨兵接入点。
+
+**首个战例(总验收,真实 wine 启动全链路)**:`doctor` 开跑体检**真抓到 16 个残留 wine 进程**
+(我自己调试留下的)→ `purge` 首轮 RESIDUAL 暴露真 bug(wine 基础设施 cmdline 是 Windows 路径,
+pkill 打不中)→ 修成逐 pid 清扫 → CLEAN;`run` 拉起 tea-base-cx26 真实 wine → `watch` DONE rc=5
+→ `logs` **自动打标 PAGE_FAULT**(正是 A3 的崩溃签名)→ `shot` → `purge` CLEAN。
+`guard denuvo 1687950` 用今日 P5R 真实时钟正确拦截(BLOCKED,22.5h 倒计时)。
+台账已播种(steam/幸福工厂/P5R/teabase 现状)。
+人类一次性设置:终端「屏幕录制」权限已验证可用(doctor ✅);辅助功能已有。
+
 ### 副线战果（2026-07-25 晚，编译等待时段）
 
 - **P5R 一发入魂→定性转向**：详见 recipe 1687950。激活大概率成功（渲染器全通+交换链+
