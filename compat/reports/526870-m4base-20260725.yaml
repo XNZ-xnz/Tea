@@ -1,0 +1,16 @@
+appid: "526870"
+game: Satisfactory
+date: 2026-07-25
+source: first-party
+chip: M4
+memory_gb: 16
+macos: "26.5.2 (25F84)"
+runtime: gptk-wine-3.0-2
+backend: D3DMetal 3 + -dx11(CrossOver 同款组合)
+launcher: 根目录 FactoryGameSteam.exe(勿直启 Shipping exe——无 .uproject 会报错)
+game_build: "1.2.3.1 CL#495413"
+settings: 默认,1470x956
+result: 端到端可玩:主菜单满画质→New Game→进世界第一人称(HUD 完整)。帧率偏低待 tea-base 对比
+runtime_pinned: false
+evidence: PROGRESS.md 幸福工厂段+recipe 526870 注records,截图存会话产物
+notes: Login Timeout 弹窗=在线认证超时,单机点 Confirm 离线正常

@@ -1,0 +1,12 @@
+appid: "1687950"
+name: Persona 5 Royal
+badges:
+  base: Unsupported   # Tea 当前免费栈(纯wine):渲染器全通后10s静默退=CrossOver专有补丁缺口
+  pro: Unknown
+  max: Unknown
+requires_gptk: false
+denuvo: true
+notes: >-
+  社区(AppleGamingWiki 2024-12 实测):CrossOver=Perfect(DXVK+游戏内限帧),纯wine=不boot。
+  与 Tea 实测吻合。tea-base(自建CX25/26)就绪后按社区配方复验——预期升 Playable/Verified。
+  Denuvo:激活后 prefix 钉死底座(runtime_pinned),每日配额约5次。

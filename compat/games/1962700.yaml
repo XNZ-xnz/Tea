@@ -1,0 +1,9 @@
+appid: "1962700"
+name: Subnautica 2
+badges:
+  base: Playable      # 社区:M4 16GB 1080p 低画质约 35fps(CrossOver+GPTK4)
+  pro: "至少 Playable(推断)"
+  max: "至少 Playable(推断)"
+requires_gptk: true
+notes: >-
+  来源:AppleInsider 2026-06-17。base 档 UE5 重型游戏的现实天花板量级参照点。未第一方复验。

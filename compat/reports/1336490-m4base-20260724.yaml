@@ -1,0 +1,16 @@
+appid: "1336490"
+game: Against the Storm
+date: 2026-07-24
+source: first-party
+chip: M4
+memory_gb: 16
+macos: "26.5.2 (25F84)"
+runtime: wine-devel-11.13+winemetal+mvk142
+backend: 自建 DXVK 3.0.2(patches/dxvk-macos-m4)+MoltenVK,游戏目录部署
+overrides: "d3d11,dxgi,d3d10core=n,b"
+game_build: steam-current-20260724
+settings: 默认画质,1470x956
+result: 局内真实玩法 55-60 FPS 贴满帧,产品负责人亲手试玩确认
+runtime_pinned: false
+evidence: PROGRESS.md「AoTS 端到端可玩」段,截图与帧率采样记录于会话产物
+notes: 首款全链路打通游戏。测量纪律:多次采样取中位,系统负载先查(重启前 4.8FPS 是系统污染)

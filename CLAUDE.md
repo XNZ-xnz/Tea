@@ -58,6 +58,26 @@ Tea 是免费开源的 macOS 原生应用（SwiftUI）：把 Windows 版 Steam �
 - recipes：`recipes/<appid>.yaml` 声明 wine 版本/后端/环境变量/DLL overrides/启动参数；无 recipe 走默认策略（读 exe 导入表猜 DX 版本）。
 - 兼容徽章四档 Verified/Playable/Unsupported/Unknown × 硬件三档 base/pro/max；数据在 `compat/`，规则见原始指令第 6 节。
 
+## 实战纪律（2026-07-25 入宪，全部来自实测踩坑）
+
+1. **游戏日志新鲜度三查**：读任何游戏产物日志前先验 ①mtime 在本次运行区间 ②md5 对比运行前后
+   ③日志内环境字段（GPU 名/路径/分辨率）与本机自洽。Steam Cloud 会把用户其他机器的
+   Player.log/存档同步下来（AoTS 2024 旧日志、P5R 2023 Windows 存档两次实锤）。
+2. **底座切换清场口诀**：换 wine 前对**所有** runtime 执行 `wineserver -k` + `pkill -9 -f wine`。
+   残留 wineserver 版本冲突（"version mismatch 956/755"）表现为静默秒退，已多次误导判断。
+   注意 wine-devel 无 preloader，`pkill -f wine-preloader` 打不中——用 `pkill -9 -f "<exe名>"`。
+3. **窗口焦点与截图判活**：窗口级 `screencapture -l` 可能取到陈旧 surface；判活用全屏截图两次
+   md5 对比（变=在渲染）。frontmost 用 `osascript` 按 unix id 设置。自动键鼠注入进不去
+   捕获鼠标的第一人称游戏——可玩性最终确认交给产品负责人真人上手。
+4. **Denuvo 纪律**：每日约 5 次激活配额，每换底座=新指纹=烧一次。动手前确认距上次任何启动
+   >24h；杀进程绝不点 Denuvo 弹窗按钮；激活成功后 prefix 永久钉死底座（`runtime_pinned`）。
+   激活后 token 缓存，同底座重启不烧配额。
+5. **shader 编译等待**：D3DMetal 冷启动 shader 编译可长达 20 分钟（007 First Light 卡 99% 属
+   正常）——「卡 99% ≠ 死机，勿杀进程」。游戏突然不启动可清 shader cache：
+   `$(getconf DARWIN_USER_CACHE_DIR)/d3dm/<GAME>/shaders.cache`。
+6. **性能诊断前先查系统负载**：accountsd/distnoted 泄漏、swap 爆满会把 55 FPS 压到 5 FPS。
+   帧率异常先 `top` 看系统态，别急着怪翻译层（AoTS 实锤：重启后 4.8→55 FPS）。
+
 ## 工作方式
 
 - 默认自主推进：构建绿+测试绿就继续，按 P0→P6 顺序（原始指令第 10 节）。重要决策记进 `PROGRESS.md`。

@@ -1,0 +1,10 @@
+appid: "1771300"
+name: "Kingdom Come: Deliverance II"
+badges:
+  base: Unsupported   # 内存足迹证据:App 14.83GB+Metal 7.62GB≈22GB+,16GB 档不推断可玩
+  pro: Unknown
+  max: Playable       # 社区(Andrew Tsai):极高画质1800×1169+MetalFX,GPTK3.0,macOS27,33-39fps
+requires_gptk: true
+notes: >-
+  来源:Andrew Tsai macOS 26 vs 27 对比视频(产品负责人存档)。§4.4 单调推断只向上不向下:
+  base 档一律 Unsupported/未测,不做乐观推断。tea-base A4 目标:base 档能进主菜单即里程碑。

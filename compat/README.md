@@ -3,7 +3,7 @@
 兼容性数据即文件：
 
 - `games/*.yaml` — 每游戏条目（徽章、硬件档位、requires_gptk 等）
-- `reports/*.yaml` — 实测报告（chip / memory / macos / runtime 版本 / game_build / date / source: first-party|community / evidence 链接 / settings / notes）
+- `reports/*.yaml` — 实测报告（chip / memory / macos / runtime 版本 / game_build / date / source: first-party|community / evidence 链接 / settings / notes / **runtime_pinned: true|false + pinned_runtime**——Denuvo 游戏的 prefix 一旦激活成功即钉死底座，永不换（P5R 教训制度化，2026-07-25）」）
 
 规则（红线）：
 

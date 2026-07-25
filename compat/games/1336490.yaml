@@ -1,0 +1,7 @@
+appid: "1336490"
+name: Against the Storm
+badges:
+  base: Verified      # 第一方实测 55-60 FPS 贴满帧,端到端可玩
+  pro: "至少 Verified(推断)"
+  max: "至少 Verified(推断)"
+requires_gptk: false  # 自建 DXVK 路线

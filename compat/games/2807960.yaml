@@ -1,0 +1,10 @@
+appid: "2807960"
+name: Battlefield 6
+badges:
+  base: Unsupported
+  pro: Unsupported
+  max: Unsupported
+requires_gptk: false
+notes: >-
+  官方明确拒绝 Wine/Proton/Steam Deck(反作弊/DRM)。来源:AppleInsider 2026-06-17 GPTK4 报道。
+  徽章体系示范样本:DRM/反作弊类 Unsupported,Tea 不做绕行。

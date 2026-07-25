@@ -1,0 +1,7 @@
+appid: "526870"
+name: Satisfactory
+badges:
+  base: Playable      # 端到端可玩(菜单→进世界),帧率偏低待性能课题
+  pro: "至少 Playable(推断)"
+  max: "至少 Playable(推断)"
+requires_gptk: true   # D3DMetal 路线(gptk-wine 提供)
