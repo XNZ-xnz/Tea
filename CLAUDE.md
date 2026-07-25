@@ -58,6 +58,19 @@ Tea 是免费开源的 macOS 原生应用（SwiftUI）：把 Windows 版 Steam �
 - recipes：`recipes/<appid>.yaml` 声明 wine 版本/后端/环境变量/DLL overrides/启动参数；无 recipe 走默认策略（读 exe 导入表猜 DX 版本）。
 - 兼容徽章四档 Verified/Playable/Unsupported/Unknown × 硬件三档 base/pro/max；数据在 `compat/`，规则见原始指令第 6 节。
 
+## 哨兵条款（2026-07-25 入宪，工具 `tools/sentinel/sentinel.py`，别名 `sentinel`）
+
+1. 预计超过 60 秒的命令一律 `sentinel run`，禁止裸跑裸等；等待判断只信 `sentinel watch`。
+2. 读游戏 / Steam / wine 日志一律 `sentinel logs --since-last`，禁止直接 cat 旧文件下结论。
+3. 切换 runtime 或开始新一轮测试前：`sentinel purge` + `sentinel doctor` 双绿才准动。
+4. 启动任何带配额的游戏前 `sentinel guard` 必查（P5R → denuvo）。
+5. 每开一个攻坚任务先 `budget start`；同一手段失败即 `attempt` 记账；任何 ESCALATE 出现 →
+   写 PROGRESS → `handoff` → 换任务，不恋战。
+6. GUI 判活必须 `shot` + view 亲眼确认，禁止凭"进程还活着"断言游戏正常
+   （窗口焦点与截图判活规则并入 shot 使用说明）。
+7. 每次会话开始：先 `sentinel state`、再 `sentinel inbox`，然后才读任务。
+8. （可选强化，建完 v1 再说）用 Claude Code hooks 在 PreToolUse 拦截裸长命令，提示改走 sentinel。
+
 ## 实战纪律（2026-07-25 入宪，全部来自实测踩坑）
 
 1. **游戏日志新鲜度三查**：读任何游戏产物日志前先验 ①mtime 在本次运行区间 ②md5 对比运行前后
