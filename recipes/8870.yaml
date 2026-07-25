@@ -105,3 +105,12 @@ notes_zh: >-
   的codegen bug更有希望修，但每次绕过尝试都撞游戏32位脆弱性崩溃)。会话内已穷尽所有非破坏性途径。
   下一步(需更深工作)：①用DXVK覆盖d3d9(enable_d3d9重编)消除关后处理时的崩溃 ②winedbg可靠注入F7
   ③挖曝光/eye-adaptation compute看MoltenVK数值。★
+
+  ★最后创造性路径关闭(2026-07-25)★：假设 DX9 渲染器管线不同、可绕黑帧 → 试 -dx9 + 自编DXVK d3d9。
+  exe 字符串实证：**只含 D3D11Drv(D3D11Commands/Device/Util)，无 D3D9Drv/D3D10Drv**——
+  BioShock Infinite Win32 版只有一套 D3D11 渲染器，-dx10/-dx11 都走它，-dx9 无 DX9 渲染器可用。
+  ∴ 黑帧在唯一渲染器里，无备用管线可绕。**这关闭了最后一条会话内创造性路径。**
+  ★★★BioShock 最终封存(证据完整)：32位D3D11-only游戏，129FPS运行+场景确证渲染，
+  但唯一D3D11渲染器的tonemap在MoltenVK输出黑(值级)。三重堵死：①32位用不了D3DMetal
+  ②无DX9备用渲染器 ③DXVK着色器补丁类同Satisfactory失败。唯一解药=CrossOver 32位wine(未装)
+  或MoltenVK上游修复。已穷尽所有会话内避险途径。★★★
