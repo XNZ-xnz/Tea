@@ -69,8 +69,43 @@ DXVK 8 补丁上游化；方法论纪律入 CLAUDE.md；AtS first-party 报告�
 25.0/25.1/26.0/26.1/26.2 均 404）。已下载入 `~/Library/Application Support/Tea/downloads/`：
 - crossover-sources-25.1.0.tar.gz（178MB）SHA256 `85458dca285ff29eed9134c0d091a84648208ac2609eeb3baa9c71acd5af106b`
 - crossover-sources-26.3.0.tar.gz（149MB）SHA256 `ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872`
-两包均含 sources/moltenvk 子树（CX 自带 MoltenVK 分支，A2 展开后清点 wine 子树版本）。
+两包均含 sources/moltenvk 子树（CX 自带 MoltenVK 分支）。**cx25 = Wine 10.0 底，cx26 = Wine 11.0 底。**
 **A1 完成。判定：无官方 formula/脚本 → 按 crossover-sources 自建（A2），官方等价覆盖流程留 A3 用。**
+
+### A1 派生快验：D3DMetal 4 官方覆盖流程复核（2026-07-25 晚）
+
+按官方等价流程（APFS 克隆 runtime → 替换同名 6 对胶水 + external 整目录 + nvngx 重命名）
+建 `gptk-wine-3.0-2+d3dm4` 并跑冒烟——**c0000142 复现坐实**（`d3d11.dll failed to initialize`）。
+原结论成立且升级为机制级：GPTK4 胶水的 `PatchUnixCallTable` 加载机制需 CX24/25 代 wine 加载器。
+**重大副产物：基线冒烟证实 CX22 现底座 + D3DMetal 3 的 `D3D12_OK`——DX12 冒烟现在就通**
+（呼应 KCD2 社区数据用 GPTK 3.0 HUD）。冒烟工具 tools/d3d11-smoke/（d3d11+d3d12 双模具，
+`-ldxguid` 编译坑已记）。
+
+### A2 进行中（2026-07-25 晚）
+
+最小化构建先行（无 freetype/gnutls，最快验证 D3DMetal 4 能否在 CX26 代加载），通了再补
+依赖做完整 runtime。构建资产 `~/Projects/tea-base-build/`（make-cx26.sh，可复现）。踩坑记录：
+- Rosetta 构建必须显式 `CC="clang -arch x86_64"`（arch -x86_64 不够，头文件 arm/i386 打架）
+- CX 树 win32u 无条件引用 SONAME_LIBVULKAN → 不能 `--without-vulkan`，借 wine-devel 的
+  libMoltenVK.dylib（x86_64+arm64 双架构）过链检
+- LDFLAGS 路径不能带空格（"Application Support" 需符号链接绕开）
+- 系统 bison 2.3 太老，用 brew bison 3.8（构建期工具，arm64 版可用）
+- 后台 make 会被工具超时杀（Killed: 9 假象），须 nohup+disown 脱离会话
+
+### 副线战果（2026-07-25 晚，编译等待时段）
+
+- **P5R 一发入魂→定性转向**：详见 recipe 1687950。激活大概率成功（渲染器全通+交换链+
+  autocloud 会话实证），但 10s 静默退三发一致 = **CrossOver 专有补丁缺口**（AppleGamingWiki
+  实锤：CrossOver=Perfect / 纯 wine=不 boot）。P5R 转为 Tea Base A4 验证游戏。
+- **compat 体系落地**：games 6 条目（AtS Verified / 幸福工厂 Playable / P5R Unsupported 待
+  tea-base / 战地6 Unsupported 示范 / Subnautica2 参照 / KCD2 base 档现实校准）+ 2 份
+  first-party 报告 + runtime_pinned 字段入 schema。
+- **实战纪律六条入宪 CLAUDE.md**（日志三查/清场口诀/截图判活/Denuvo/shader 等待/系统负载）。
+- **MoltenVK 上游 issue 英文草稿**备好（patches/dxvk-macos-m4/moltenvk-issue-draft.md），
+  提交前待产品负责人过目。
+- **GPTK skills 评估**（产品负责人安装 apple/game-porting-toolkit 插件）：核心方法论面向
+  「有源码的原生 Metal 移植」，对闭源游戏不适用；真价值 = Metal 验证层诊断 64 位游戏、
+  印证 D3DMetal-first 教条（MSC 是官方着色器翻译器）、未来开源游戏原生移植路径。
 
 ## 🏆🏆 战略转折：幸福工厂黑屏根治——D3DMetal 后端（CrossOver 同款路线）（2026-07-24 深夜）
 
