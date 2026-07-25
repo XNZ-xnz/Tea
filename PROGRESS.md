@@ -120,6 +120,30 @@ Mode,Info.plist 实证 4.0b1)。**D3DMetal 4 当天在现有底座解锁,无需�
 闭环);wine 主执行文件补 rpath。哨兵全程接管(run/watch/logs 签名打标/attempt 记账)。
 tea-base 自建继续留作 P5R(CrossOver 专有补丁)与 Steam 单底座的解药;cx25 configure 失败待查。
 
+### 🔬 A3 深挖终局:问题精确定义(2026-07-26 凌晨,新机 M5 Max)
+
+**迁移即战力**:M5 Max/36GB/1.6TB 迁移近满分(连 cx25 构建产物与屏幕录制权限都到位),
+Rosetta 补装后 doctor 全绿。KCD2 的磁盘/内存障碍在新机上解除(compat 待按 max 档重测)。
+
+**cx26-wow64 完整版**建成(--enable-archs=x86_64,i386,M5 Max -j14 编译,零错误)。
+**系统性排除清单**(全部实测,哨兵记账):
+- unixlib 握手:两边 HANDSHAKE_OK(NtQueryVirtualMemory 句柄有效,语义不同:CX22=小值,我们=unix裸指针)
+- 派发机制:手动 __wine_unix_call(handle,0,NULL) 两边都返回 c0000005 状态=unix 函数真的执行了
+- builtin 标记:全部 PE 都有 "Wine builtin DLL"
+- CX_ACTIVE_GRAPHICS_BACKEND=d3dmetal 开关(CW HACK 24905,bottle D3DMetal 开关的真身):无效
+- 带窗口(winemac 加载):同崩,魔数 0x0020019008070C10 跨构建恒定=胶水跳占位数据
+- **决定性:CX22 胶水(在 Gcenx 出厂构建上实证能跑)放到 cx26w 上也 NULL 跳变**
+
+**∴ 问题精确定义:我们从 crossover-sources 构建的 wine(cx25/cx26-min/cx26-wow64 三个变体)
+一致缺失「胶水宿主能力」——任意代际胶水在其上均 init 后跳 NULL/占位;而 Gcenx 出厂 CX22 构建
+托管任意代框架都过冒烟(fw4-mix 实证)。缺口在构建配方 delta(configure flags/补丁/后处理),
+Gcenx 配方不公开(repo 无 workflow,formula 只装预编译 tarball)。**
+
+**下一步两条路**:①CrossOver 26 免费试用装机做 ground truth(官方认可渠道,跑同一套探针对比
+env/loader 行为——信息密度最高,待产品负责人点头)②社区问询 Gcenx 构建配方。
+**同时可用资产**:fw4-mix(CX22底座+framework 4.0b1)冒烟级 D3DMetal 4 已在手,简单 DX11/12
+游戏可先用;现有游戏栈全部不受影响。
+
 ### 副线战果（2026-07-25 晚，编译等待时段）
 
 - **P5R 一发入魂→定性转向**：详见 recipe 1687950。激活大概率成功（渲染器全通+交换链+
