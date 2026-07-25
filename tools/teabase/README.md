@@ -39,3 +39,15 @@
 - **gptk-wine-3.0-2 + 仅换 framework 4.0b1(fw4 混合)= D3D11+D3D12 冒烟全绿,
   但 UE5 断言 bFoundMatchingDevice**(outputs/LUID 实测均一致,深层契约待查)
 - cx25 编译成功(MAKE_RC=0 零错误),**组装+冒烟未做——迁移后第一件事**
+
+## 🔑 签名发现(2026-07-26,CrossOver ground truth 破案)
+CX wineloader 带正式签名 + entitlements:
+- com.apple.security.cs.allow-unsigned-executable-memory
+- com.apple.security.cs.disable-executable-page-protection
+- com.apple.security.cs.disable-library-validation
+**我们的 x86_64 产物全程无签名 → D3DMetal 胶水的运行时打表(PatchUnixCallTable)疑被
+内存保护静默拦截 → 表留空 → 恒定魔数/NULL 崩溃。**ad-hoc 签名后行为立变(秒崩→长跑)。
+组装流程新增步骤:所有 bin/* 与 unix .so 用 entitlements plist ad-hoc 签名
+(codesign --force -s - --entitlements wine-ent.plist)。
+排除清单(全实测):胶水代际×3、wow64、freetype/gnutls、CX 开关(CX_ACTIVE_GRAPHICS_BACKEND)、
+loader 互换、PE 树互换、unix .so 互换——签名是最后也是真正的变量。
