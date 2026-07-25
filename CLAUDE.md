@@ -4,7 +4,7 @@ Tea 是免费开源的 macOS 原生应用（SwiftUI）：把 Windows 版 Steam �
 
 ## 红线（不可逾越，每次会话自查）
 
-1. **不打包、不分发** Apple / Valve / 游戏厂商的任何二进制。GPTK/D3DMetal 只走用户导入；Steam 安装器只在运行时从 Valve 官方地址获取。
+1. **不打包、不分发** Apple / Valve / 游戏厂商的任何二进制。措辞定案（2026-07-25）：「Apple 专有组件（D3DMetal）仅经 Apple 认可的渠道获取：你自行从 Apple 下载的 GPTK，或 Apple 官方文档指向的预构建评估环境。Tea 自身的 Release 永不包含、永不镜像它们。」凡内含 D3DMetal 的 runtime（现 gptk-wine，将来 tea-base 覆盖态），首次获取前必须经用户一次性确认（CLI 提示/GUI 弹窗，说明组件来源与性质）。「导入 GPTK 解锁 DX12」作废——现状：DX12 由 gptk-wine（Apple 文档点名的预构建环境）提供；导入 GPTK 4 = 为 Tea Base 就绪后解锁最新一代 D3DMetal。Steam 安装器只在运行时从 Valve 官方地址获取。
 2. **永不接触 Steam 凭据**：不读取、不存储、不记录、不自动填充；登录只发生在 Steam 自己的窗口里；不做任何绕过登录的自动化。
 3. **下载与执行链是安全敏感区**：manifest 钉版本 + SHA256、仅 HTTPS、校验失败即停、不执行任何来源不明的东西。这部分代码测试先行，改动加倍谨慎。
 4. 不虚构任何兼容性数据或测试结果；每份兼容报告必须有出处，找不到出处保持 Unknown。
@@ -39,9 +39,21 @@ Tea 是免费开源的 macOS 原生应用（SwiftUI）：把 Windows 版 Steam �
   理由：MoltenVK 对 DXVK 3.x 采样器堆动态索引有 codegen bug（tonemap 全黑，SPIR-V 级实锤，
   纯开源侧 4 种工作区全部无效）；D3DMetal 完全绕开 MoltenVK。开源 DXVK 栈仅作简单 DX11 游戏补充
   （风暴之城实证 55-60 FPS 可玩）。Steam 客户端本身仍用 wine-devel-11.13+winemetal（gptk-wine 会拖垮 webhelper）。
-- Wine 来源（2026-07-23 实测）：主力 = Gcenx **game-porting-toolkit**（gptk-wine 原装含 D3DMetal 3）；
+- **★主线（2026-07-25 方向修订 v2）：Tea Base——自建同代自由底座★**
+  一周实测定性：**不缺翻译层，缺"与 D3DMetal 同代的底座"**（D3DMetal 3 已实证、自建 DXVK 已实证、
+  GPTK 4 导入器就绪，卡住一切的是 CX22 代老 wine）。路线 A = 从 CodeWeavers LGPL 公开源码
+  （crossover-sources 25/26）Rosetta 自建 `tea-base-cx25/26`（GPTK 1 官方安装方式就是 brew 编
+  crossover-sources，自建是正统玩法）。四步走 A1 侦察→A2 构建→A3 覆盖验证（先 D3DMetal 3 隔离
+  OS 变量，后 D3DMetal 4）→A4 游戏验证（幸福工厂帧率对比/KCD2 主菜单/Steam 单底座重测）。
+  撞硬墙转路线 B（按 A1 缺口清单把胶水 ABI 移植进 vanilla wine-devel）；B 亦不通接受双模式现状。
+  **无论成败，Tea Base 有结论后 P4（GUI）即启动，不再漂移。**构建资产入 `tools/teabase/`。
+- **图形后端矩阵（2026-07-25 定案）**：D3DMetal 3（✅ 可用，DX12/UE 硬骨头主力）｜D3DMetal 4
+  （登记待用，Tea Base 打通后的最新主力）｜自建 DXVK 3.0.2（✅ AtS 55-60fps 实证，DX11/Unity
+  主力，独家资产）｜DXMT（等符号导出底座）｜已知天花板（文档化不再投入）：MoltenVK codegen bug
+  （待报上游）、32 位 wow64 早期启动死角（BioShock 封存）。
+- Wine 来源（2026-07-23 实测）：现役主力 = Gcenx **game-porting-toolkit**（gptk-wine 原装含 D3DMetal 3）；
   开源补充 = Gcenx **macOS_Wine_builds**（WineHQ 官方构建）+ 自建 DXVK/DXMT 变体。
-  GPTK 4 库需 CX24/25 代底座（实测 c0000142），只导入登记暂不启用。
+  GPTK 4 库需 CX24/25 代底座（实测 c0000142）→ 这正是 Tea Base 要补的缺口。
 - Steam：默认单一 `steam` prefix；库解析读 `libraryfolders.vdf` + `appmanifest_*.acf`（自写解析器，fixture 单测）；启动链 = `steam.exe -silent` 后经 `steam://rungameid/<appid>`。
 - recipes：`recipes/<appid>.yaml` 声明 wine 版本/后端/环境变量/DLL overrides/启动参数；无 recipe 走默认策略（读 exe 导入表猜 DX 版本）。
 - 兼容徽章四档 Verified/Playable/Unsupported/Unknown × 硬件三档 base/pro/max；数据在 `compat/`，规则见原始指令第 6 节。

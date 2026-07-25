@@ -2,6 +2,37 @@
 
 > 每完成一个阶段更新本文件：当前状态、已定决策、下一步。换新会话先读 CLAUDE.md 再读这里。
 
+## 🧭 方向修订 v2：底座自持战略（2026-07-25，产品负责人指令）
+
+**一段话**：一周实测把核心瓶颈定性——**不缺翻译层，缺"与 D3DMetal 同代的自由底座"**。
+D3DMetal 3 实证可用（幸福工厂黑屏根治）、自建 DXVK 实证可玩（AtS 55-60fps）、GPTK 4 导入器
+就绪；卡住一切的是 CX22 代老 wine。**主线 = Tea Base：从 CodeWeavers LGPL 公开源码自建
+CX25/26 代底座**（A1 侦察→A2 构建→A3 覆盖验证→A4 游戏验证，判定门与路线 B 见 CLAUDE.md）。
+BioShock 正式放弃（32 位 wow64 死角 + MoltenVK tonemap，双重天花板文档化）。
+
+**依据（出处）**：
+1. CodeWeavers 依 LGPL 公开 CrossOver 全部 Wine 侧修改源码：
+   https://www.codeweavers.com/crossover/source （历史包 `media.codeweavers.com/pub/crossover/source/crossover-sources-<版本>.tar.gz`）；CrossOver 26 已于 2026-02 发布。
+2. GPTK 本就基于 CrossOver 源码（CodeWeavers 官方宣布）；GPTK 1 官方安装方式 = brew 编
+   crossover-sources。自建是生态正统玩法。
+3. 社区实测（Andrew Tsai，macOS 26 vs 27 对比，产品负责人已存档）：KCD2 极高画质
+   1800×1169、MetalFX Temporal（1044×678 输入）、GPTK 3.0 HUD，macOS 27 上 33-39fps；
+   内存足迹 App 14.83GB + Metal 7.62GB。推论：重型 DX12 同代底座可达；**D3DMetal 3 不是
+   瓶颈，CX22 代底座才是**；同一 GPTK 在 27 快于 26。
+4. 自测（本账本已记）：GPTK 4 库在 vanilla wine 11.13 与 gptk-wine 3.0-2 均 c0000142，
+   需 CX24/25 代底座。
+5. 情报（AppleInsider 2026-06-17 GPTK 4 报道）：007 First Light 冷启动 shader 编译卡 99%
+   约 20 分钟属正常（诊断规则：卡 99% ≠ 死机勿杀）；战地 6 官方拒 Wine/Proton →
+   compat 标 Unsupported 示范样本，DRM 绕行 Tea 不做；Subnautica 2 = M4 16GB 1080p 低画质
+   约 35fps（CrossOver+GPTK4），base 档 UE5 重型现实天花板量级。
+
+**徽章现实校准**：base 档（16GB）对重型 DX12 按内存足迹证据（KCD2 约 22GB+）一律
+Unsupported/未测，不做乐观推断（§4.4 单调推断只向上不向下）。compat schema 新增
+`runtime_pinned: true|false` + 钉定底座标识——**Denuvo 游戏 prefix 一旦定型永不换底座**。
+
+**副线（主线编译/等待时段穿插）**：P5R 一发入魂（>24h 冷却已满足）；MoltenVK issue +
+DXVK 8 补丁上游化；方法论纪律入 CLAUDE.md；AtS first-party 报告入 compat/。
+
 ## 🏆🏆 战略转折：幸福工厂黑屏根治——D3DMetal 后端（CrossOver 同款路线）（2026-07-24 深夜）
 
 **黑屏彻底解决，画面正常渲染，可进游戏世界（产品负责人亲眼确认）。** 方法 = **换掉整条
