@@ -33,6 +33,45 @@ Unsupported/未测，不做乐观推断（§4.4 单调推断只向上不向下�
 **副线（主线编译/等待时段穿插）**：P5R 一发入魂（>24h 冷却已满足）；MoltenVK issue +
 DXVK 8 补丁上游化；方法论纪律入 CLAUDE.md；AtS first-party 报告入 compat/。
 
+### A1 侦察战报（2026-07-25 晚，当天完成）
+
+**GPTK 4 dmg 重读（关键收获，改变局面）**：
+1. **官方升级路径实锤**：eval env Read Me 明文——Gcenx 的 game-porting-toolkit cask（= 我们的
+   gptk-wine-3.0-2 同源）与 CrossOver 都可以**整目录替换**升级到 D3DMetal 4
+   （`mv external external.old; mv wine wine.old; ditto redist/lib/ .`）。注意我们 runtime 的
+   `lib/wine/x86_64-unix/` 是 wine 本体 .so 与胶水同目录（38 文件含 ntdll.so），官方 mv 流程
+   不能照搬，等价操作 = **只替换同名 6 对胶水 + external 整目录**。此前「c0000142 = 需 CX24/25
+   底座」的测试方式待复核——很可能没做完整替换（A3 必须按官方等价流程重测）。
+2. **系统要求纠偏**：eval env 官方要求 = **macOS 15 Sequoia+**（不是 27！26.5.2 富余）；
+   只有 `D3DM_MTL4`（Metal 4 后端）才要 27+。官方环境变量全集：D3DM_SUPPORT_DXR（M3+ 默认开）、
+   ROSETTA_ADVERTISE_AVX、D3DM_ENABLE_METALFX（26+，DLSS→MetalFX）、D3DM_MTL4（27+）、
+   **D3DM_MAX_FPS（帧率上限，新发现）**。
+3. **诊断金矿**：shader cache 在 `$(getconf DARWIN_USER_CACHE_DIR)/d3dm/<GAME>/shaders.cache`
+   （「游戏突然不启动→清 shader cache」入诊断规则）；D3DMetal 日志走系统日志 "D3DMetal" 类别；
+   Metal 调试需关 SIP + macOS 27 gpucapture。
+4. **github.com/apple/game-porting-toolkit** = AI porting skills 仓库（Apache 2.0，已装进
+   Claude Code），不含 wine 源码/formula——官方构建脚本不在 dmg 内，正统构建路径就是
+   crossover-sources（Read Me 指名 Gcenx casks 为官方认可预构建渠道，红线文案的依据）。
+
+**胶水 ABI 缺口清单（nm -u + otool -L + 导出对比，路线 B 需求表）**：
+- **unix 侧（.so）**：GPTK4 与 CX22 结构同源（WineOS/WinePaths/WineRegistry/WineEventCallbacks/
+  WineSwapchainCallbacks + `___wine_unix_call_funcs`），但 GPTK4 **新增导出
+  `PatchUnixCallTable()` + Init 族函数**（WineOS::Init 等 7 个）→ 加载机制换代：CX22 静态
+  funcs 表 vs GPTK4 主动 patch 调用表。**这就是 c0000142 的机制级解释与 CX25 代底座的核心需求。**
+- **系统依赖**：GPTK4 .so 的 71 个未定义符号全是系统库（libc++/libSystem/CoreGraphics/objc），
+  **零 wine 符号 import，零系统缺口**（26.5.2 全满足）。
+- **PE 侧（dll）**：GPTK4 d3d11.dll 仅多 import `ucrtbase.dll`（现代 wine 均有，非缺口）。
+- redist 清点：胶水 6 对（d3d10/d3d11/d3d12/dxgi/nvapi64/nvngx-on-metalfx）+
+  external/{D3DMetal.framework, libd3dshared.dylib}。
+
+**crossover-sources 版本探测**：官网可取 = **25.0.1、25.1.0、26.3.0**
+（https://media.codeweavers.com/pub/crossover/source/crossover-sources-<v>.tar.gz，
+25.0/25.1/26.0/26.1/26.2 均 404）。已下载入 `~/Library/Application Support/Tea/downloads/`：
+- crossover-sources-25.1.0.tar.gz（178MB）SHA256 `85458dca285ff29eed9134c0d091a84648208ac2609eeb3baa9c71acd5af106b`
+- crossover-sources-26.3.0.tar.gz（149MB）SHA256 `ac99c8ca4b3848f3e81784135f023df266b61c2345726ea55a50b3e030dd6872`
+两包均含 sources/moltenvk 子树（CX 自带 MoltenVK 分支，A2 展开后清点 wine 子树版本）。
+**A1 完成。判定：无官方 formula/脚本 → 按 crossover-sources 自建（A2），官方等价覆盖流程留 A3 用。**
+
 ## 🏆🏆 战略转折：幸福工厂黑屏根治——D3DMetal 后端（CrossOver 同款路线）（2026-07-24 深夜）
 
 **黑屏彻底解决，画面正常渲染，可进游戏世界（产品负责人亲眼确认）。** 方法 = **换掉整条
