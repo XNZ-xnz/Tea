@@ -24,3 +24,12 @@ notes_zh: >-
   已知残留：帧率偏低（D3DMetal on wine8 跑 UE5 的性能课题，非正确性问题）。
   产品级教训：Tea 的主力后端应是 D3DMetal（用户导入 GPTK），DXVK 仅作简单 DX11 游戏补充。
   工具：tools/diagnostics/sf-run-d3dmetal.sh。
+
+  ★★端到端可玩确认(2026-07-25)★★：改用根启动器 FactoryGameSteam.exe(非直启Shipping exe——
+  后者找不到.uproject；shipped游戏不含.uproject文件) + 切wine前wineserver -k全清。
+  实证全流程：主菜单满画质渲染(打满光的3D工厂城背景)→ 点击导航响应 → New Game选起始区(草原)→
+  Start Game → **进入游戏世界第一人称**(满屏3D草地/天空/远景树林 + 完整HUD: 目标Build the HUB/
+  物品栏/血条/指南针/按键提示)。全彩全光照零黑屏。D3DMetal+-dx11 端到端可玩铁证(截图存档)。
+  唯一提示：Login Timeout(在线认证超时)——单机游戏点Confirm离线正常玩，非渲染问题。
+  自动键鼠注入进不去(FPS游戏捕获鼠标需真实焦点)——用户直接键鼠操作即可玩。
+  ★幸福工厂状态升级：从"能渲染"→"端到端确认可玩"。第二款完整可玩游戏(继AoTS)。★
