@@ -309,9 +309,3 @@ index 69a11600..83da6d45 100644
      VkMemoryGetWin32HandleInfoKHR handleInfo = { VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR };
      handleInfo.handleType = handleType;
      handleInfo.memory = m_memory;
-diff --git a/subprojects/dxbc-spirv b/subprojects/dxbc-spirv
---- a/subprojects/dxbc-spirv
-+++ b/subprojects/dxbc-spirv
-@@ -1 +1 @@
--Subproject commit c5c1a5b9b61773d59592f628faa39be9add26282
-+Subproject commit c5c1a5b9b61773d59592f628faa39be9add26282-dirty
